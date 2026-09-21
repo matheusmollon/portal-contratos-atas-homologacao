@@ -5,3 +5,13 @@
 
 .portal-title{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.brand-title .homologacao-badge,.homologacao-badge{display:inline-block;background:#fff0b3;color:#624500;border:1px solid #c99a16;border-radius:4px;padding:3px 9px;font-size:11px;font-weight:700;letter-spacing:.4px}.scope-label{display:block}#homologacao{max-width:610px}#homologacao h2{margin:18px 0 14px}#homologacao p{margin-bottom:16px}#homologacao .primary{margin-top:8px}.pncp-notice{font-size:13px;margin:-8px 0 22px;padding:12px 14px;background:#fff8dc;border-left:3px solid #c99a16;color:#624500}
 
+/* A página estática também precisa funcionar em telas estreitas e com fonte ampliada. */
+html{overflow-x:hidden}body{min-width:0;overflow-wrap:anywhere}.brand,.brand-title,.portal-title,.hero>div,.card-top>h2,.dialog-top>div{min-width:0}dialog{overflow-y:auto;overflow-wrap:anywhere}.links a{overflow-wrap:anywhere}.shortcuts button{min-width:0}
+@media(max-width:700px){
+ .header{gap:14px}.header nav{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.header nav button{min-height:44px;padding:9px 7px;white-space:normal}
+ .hero{gap:20px}.hero h1{font-size:clamp(27px,7vw,38px);letter-spacing:-.6px}.stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.stats article{min-height:126px}.stats article:last-child{grid-column:1/-1;min-height:105px}.stats article:after{margin-top:9px}
+ .global-search{flex-direction:column}.global-search input,.global-search .primary{width:100%}.filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}.filters .field{min-width:0}.filters .grow{grid-column:1/-1;min-width:0}.filters input,.filters select{width:100%}.filters #clear{grid-column:1/-1;min-height:44px}
+ .shortcuts button{min-height:95px}.card-top{flex-wrap:wrap}.card button{align-self:stretch;min-height:44px}.heading #reload{min-height:44px}.links{display:grid;grid-template-columns:1fr}.links a{display:block;text-align:center;min-height:44px}.item-meta{flex-direction:column;gap:5px}
+ dialog{width:calc(100% - 16px);max-width:none;max-height:calc(100dvh - 16px);padding:18px}.dialog-top{align-items:flex-start}.dialog-top #closeDetail{flex-shrink:0;min-height:44px}.detail-grid dd,.item p{overflow-wrap:anywhere}
+}
+@media(max-width:380px){.header{padding:14px 12px}main{padding:20px 12px 40px}.brand{gap:9px}.utfpr-logo{width:86px}.brand-title{padding-left:9px}.brand-title strong{font-size:13px}.brand-title span{font-size:10px}.homologacao-badge{font-size:9px}.stats strong{font-size:27px}.card{padding:15px}.pagination{gap:7px}.pagination button{padding:9px 7px;white-space:normal}.dialog-top{flex-wrap:wrap}}
