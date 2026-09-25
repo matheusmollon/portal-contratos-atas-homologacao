@@ -8,11 +8,17 @@ const norm=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLo
 const money=v=>v===null||v===undefined||v===''?'Não informado':Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const qty=v=>v===null||v===undefined||v===''?'Não informada':Number(v).toLocaleString('pt-BR');
 const date=v=>/^\d{4}-\d{2}-\d{2}$/.test(v||'')?v.slice(8,10)+'/'+v.slice(5,7)+'/'+v.slice(0,4):'Não informada';
+const dateTime=v=>{const d=new Date(v);return v&&Number.isFinite(d.getTime())?d.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}):'Não informada';};
+const yesNo=v=>v===true?'Sim':v===false?'Não':'Não informado';
 function el(tag,text,cls){const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;}
 function note(text,type=''){ $('notice').textContent=text;$('notice').className='notice '+type; }
 function link(parent,url,label){if(!/^https:\/\/(?:pncp\.gov\.br|(?:[a-z0-9-]+\.)*comprasnet\.gov\.br|(?:[a-z0-9-]+\.)*compras\.gov\.br)(?:\/|$)/i.test(url||''))return;const a=el('a',label+' ↗');a.href=url;a.target='_blank';a.rel='noopener noreferrer';parent.append(a);}
 function badge(row){return el('span',row.situacao,'badge'+(row.situacao==='Vigente'?' live':''));}
 function field(dl,label,value){const wrap=el('div');wrap.append(el('dt',label),el('dd',value===null||value===undefined||value===''?'Não informado':value));dl.append(wrap);}
+const campusList=row=>String(row.campus||'Regional Norte').split('|').map(x=>x.trim()).filter(Boolean);
+const campusLabel=row=>campusList(row).join(', ');
+const campusMatch=(row,value)=>!value||campusList(row).includes(value);
+const unidadeContrato=row=>row.uasg==='150148'?'150148 — Campus Londrina':row.uasg==='150149'?'150149 — Campus Apucarana':'153176 — Núcleo Regional Norte';
 
 const SEI_CONSULTA_PUBLICA='https://sei.utfpr.edu.br/sei/modulos/pesquisa/md_pesq_processo_pesquisar.php?acao_externa=protocolo_pesquisar&acao_origem_externa=protocolo_pesquisar&id_orgao_acesso_externo=0';
 function linkTransparenciaContrato(id){
@@ -46,8 +52,9 @@ function load(){
  $('nAtas').textContent=live.length;$('nItens').textContent=new Set(d.itens.filter(x=>ids.has(x.ataId)).map(x=>x.ataId+'|'+x.numero)).size;
  const dt=new Date(d.atualizadoEm).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'});
  $('updated').textContent='Última atualização: '+dt;$('coverage').textContent='Histórico de atas coletado desde '+date(d.coberturaAtas);
- note(d.desatualizado?'A atualização tem mais de 48 horas. Exibindo os últimos dados disponíveis.':'Dados das fontes oficiais · Consulta exclusiva da UASG 153176',d.desatualizado?'warning':'');
+ note(d.desatualizado?'A atualização tem mais de 48 horas. Exibindo os últimos dados disponíveis.':'Dados oficiais · Contratos das UGs 153176, 150148 e 150149 · Atas gerenciadas pela UASG 153176',d.desatualizado?'warning':'');
  if(d.atasComPendenciaItens)note((d.desatualizado?'A atualização tem mais de 48 horas. ':'')+d.atasComPendenciaItens+' ata(s) com itens indisponíveis ou incompletos na fonte oficial. A pesquisa por itens e sua contagem não incluem essas atas.','warning');
+ if(d.pendenciasEnriquecimento)note(d.pendenciasEnriquecimento+' consulta(s) de saldo ou adesão ficaram indisponíveis na fonte oficial. Os campos afetados aparecem como não informados e serão consultados novamente na próxima atualização.','warning');
  years();render();};
  const failure=()=>{state.busy=false;$('reload').disabled=false;note('Não foi possível carregar os dados. Tente “Recarregar dados”.','error');};
  fetch('./dados.json?at='+Date.now(),{cache:'no-store'}).then(r=>{
@@ -58,7 +65,7 @@ function load(){
   success(d);
  }).catch(failure);
 }
-function navigate(view){state.view=view;state.page=1;$('query').value='';$('year').value='';$('status').value='Vigente';
+function navigate(view){state.view=view;state.page=1;$('query').value='';$('campus').value='';$('year').value='';$('status').value='Vigente';
  $('home').hidden=view!=='inicio';$('catalog').hidden=!['contratos','atas','todos'].includes(view);$('guidance').hidden=view!=='orientacoes';
  document.querySelectorAll('nav [data-view]').forEach(b=>{b.classList.toggle('active',b.dataset.view===view);if(b.dataset.view===view)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
  $('catalogTitle').textContent=view==='atas'?'Atas e itens':view==='todos'?'Resultados da pesquisa':'Contratos';
@@ -69,14 +76,14 @@ function years(){const old=$('year').value;$('year').replaceChildren(new Option(
 function matchItems(r,q){return r.tipo==='ata'?(state.items.get(r.id)||[]).filter(i=>norm([i.descricao,i.codigo,i.fornecedor,i.numero].join(' ')).includes(q)):[];}
 function render(){
  if(!state.data||!['contratos','atas','todos'].includes(state.view))return;
- const q=norm($('query').value.trim()),year=$('year').value,status=$('status').value;
- const found=rows().filter(r=>(!year||r.ano===year)&&(!status||r.situacao===status)&&(!q||norm([r.objeto,r.numero,r.fornecedor,r.processo].join(' ')).includes(q)||matchItems(r,q).length));
+ const q=norm($('query').value.trim()),campus=$('campus').value,year=$('year').value,status=$('status').value;
+ const found=rows().filter(r=>campusMatch(r,campus)&&(!year||r.ano===year)&&(!status||r.situacao===status)&&(!q||norm([r.objeto,r.numero,r.fornecedor,r.processo,campusLabel(r)].join(' ')).includes(q)||matchItems(r,q).length));
  found.sort((a,b)=>String(b.ano).localeCompare(String(a.ano))||a.numero.localeCompare(b.numero,undefined,{numeric:true}));
  const pages=Math.max(1,Math.ceil(found.length/state.size));state.page=Math.min(state.page,pages);
  $('resultCount').textContent=found.length+' resultado(s) · '+(status||'Todas as situações');$('cards').replaceChildren();
  for(const row of found.slice((state.page-1)*state.size,state.page*state.size)){
  const card=el('article',undefined,'card'),top=el('div',undefined,'card-top');top.append(el('h2',(row.tipo==='ata'?'Ata ':'Contrato ')+row.numero),badge(row));card.append(top,el('p',row.objeto,'object'));
- const dl=el('dl');if(row.fornecedor)field(dl,'FORNECEDOR',row.fornecedor);field(dl,'VALOR '+(row.tipo==='ata'?'REGISTRADO':'GLOBAL'),money(row.valor));field(dl,'VIGÊNCIA',date(row.inicio)+' a '+date(row.fim));card.append(dl);
+ const dl=el('dl');field(dl,'CÂMPUS',campusLabel(row));if(row.fornecedor)field(dl,'FORNECEDOR',row.fornecedor);field(dl,'VALOR '+(row.tipo==='ata'?'REGISTRADO':'GLOBAL'),money(row.valor));field(dl,'VIGÊNCIA',date(row.inicio)+' a '+date(row.fim));card.append(dl);
  if(q){const matches=matchItems(row,q);if(matches.length){const m=el('div',undefined,'match');m.append(el('strong',matches.length+' registro(s) de item encontrado(s): '),mark(matches[0].descricao,$('query').value.trim()));card.append(m);}}
  if(row.avisoItens)card.append(el('p',row.avisoItens,'notice warning'));
  const b=el('button',row.tipo==='ata'?'Ver ata e itens →':'Ver contrato →','secondary');b.addEventListener('click',()=>detail(row));card.append(b);$('cards').append(card);
@@ -88,8 +95,9 @@ function detail(row){
  $('detailType').textContent=row.tipo==='ata'?'ATA DE REGISTRO DE PREÇOS':'CONTRATO';$('detailTitle').textContent=row.numero;
  const body=$('detailBody');body.replaceChildren(badge(row),el('p',row.objeto,'detail-object'));
  const dl=el('dl',undefined,'detail-grid');field(dl,'Vigência',date(row.inicio)+' a '+date(row.fim));field(dl,'Valor',money(row.valor));
+ field(dl,'Câmpus atendido',campusLabel(row));
  if(row.tipo==='contrato'){field(dl,'Fornecedor',row.fornecedor);field(dl,'Documento do fornecedor',row.documento);campoProcesso(dl,row.processo);field(dl,'Situação na fonte',row.situacaoOrigem);}
- field(dl,'Unidade','153176 — Núcleo Regional Norte');body.append(dl);
+ field(dl,'Unidade',row.tipo==='contrato'?unidadeContrato(row):'153176 — Núcleo Regional Norte');body.append(dl);
  if(row.tipo==='ata'){
   body.append(el('h3','Processo e licitação de origem'));
   if(row.compra){const c=row.compra,cd=el('dl',undefined,'detail-grid');campoProcesso(cd,c.processo);field(cd,'Número/ano da compra',c.numero+'/'+c.ano);field(cd,'Modalidade',c.modalidade);field(cd,'Publicação da contratação',date(c.publicacao));body.append(cd);
@@ -111,8 +119,11 @@ function detail(row){
   const list=el('div',undefined,'item-list');body.append(list);
   const draw=()=>{list.replaceChildren();const q=norm(search.value),items=(state.items.get(row.id)||[]).filter(i=>norm([i.descricao,i.codigo,i.fornecedor].join(' ')).includes(q));
    for(const item of items){const box=el('article',undefined,'item');box.append(el('strong','Item '+item.numero+' · '+item.tipo+' · Código '+(item.codigo||'não informado')));const p=el('p');p.append(mark(item.descricao,search.value));box.append(p,el('p',item.fornecedor),el('p','Documento do fornecedor: '+(item.documento||'Não informado')));
-   const meta=el('div',undefined,'item-meta');meta.append(el('span','Preço registrado: '+money(item.preco)),el('span','Quantidade do fornecedor: '+qty(item.quantidade)),el('span','Valor total do item: '+money(item.valor)),el('span','Saldo: não informado'),el('span','Unidade de fornecimento: não informada'));
-   if(item.desconto)meta.append(el('span','Maior desconto: '+qty(item.desconto)+'%'));box.append(meta);list.append(box);}
+   const meta=el('div',undefined,'item-meta');meta.append(el('span','Preço registrado: '+money(item.preco)),el('span','Quantidade do fornecedor: '+qty(item.quantidade)),el('span','Quantidade registrada: '+qty(item.quantidadeRegistrada)),el('span','Quantidade empenhada: '+qty(item.quantidadeEmpenhada)),el('span','Saldo para empenho: '+qty(item.saldoEmpenho)),el('span','Valor total do item: '+money(item.valor)),el('span','Saldo para adesões: '+qty(item.saldoAdesoes)),el('span','Limite de adesão: '+qty(item.qtdLimiteAdesao)),el('span','Limite informado na compra: '+qty(item.qtdLimiteInformadoCompra)),el('span','Aceita adesão: '+yesNo(item.aceitaAdesao)),el('span','Saldo atualizado na fonte: '+dateTime(item.dataHoraAtualizacao)),el('span','Unidade de fornecimento: não informada'));
+   if(item.desconto)meta.append(el('span','Maior desconto: '+qty(item.desconto)+'%'));box.append(meta);
+   if(Array.isArray(item.unidadesAdesao)&&item.unidadesAdesao.length){const more=el('details',undefined,'adhesion-details'),sum=el('summary','Detalhamento por unidade ('+item.unidadesAdesao.length+')'),units=el('div',undefined,'adhesion-list');more.append(sum);
+    item.unidadesAdesao.forEach(u=>{const unit=el('div',undefined,'adhesion-unit');unit.append(el('strong',(u.nomeUnidade||u.codigoUnidade||'Unidade não informada')+(u.tipoUnidade?' · '+u.tipoUnidade:'')),el('span','Fornecedor: '+(u.fornecedor||'Não informado')),el('span','Saldo de adesões: '+qty(u.saldoAdesoes)),el('span','Limite de adesão: '+qty(u.qtdLimiteAdesao)),el('span','Limite informado: '+qty(u.qtdLimiteInformadoCompra)),el('span','Aceita adesão: '+yesNo(u.aceitaAdesao)));units.append(unit);});more.append(units);box.append(more);}
+   list.append(box);}
    if(!items.length)list.append(el('p','Nenhum item encontrado para este filtro.'));};search.addEventListener('input',draw);draw();
  }
  $('detail').showModal();
@@ -121,10 +132,9 @@ document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',(
 $('globalSearch').addEventListener('submit',e=>{e.preventDefault();const q=$('globalQ').value;navigate('todos');$('query').value=q;render();});
 $('filters').addEventListener('submit',e=>{e.preventDefault();state.page=1;render();});
 let timer; $('query').addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(()=>{state.page=1;render();},150);});
-['year','status'].forEach(id=>$(id).addEventListener('change',()=>{state.page=1;render();}));
-$('clear').addEventListener('click',()=>{$('query').value='';$('year').value='';$('status').value='Vigente';state.page=1;render();});
+['campus','year','status'].forEach(id=>$(id).addEventListener('change',()=>{state.page=1;render();}));
+$('clear').addEventListener('click',()=>{$('query').value='';$('campus').value='';$('year').value='';$('status').value='Vigente';state.page=1;render();});
 $('prev').addEventListener('click',()=>{state.page--;render();});$('next').addEventListener('click',()=>{state.page++;render();});
 $('closeDetail').addEventListener('click',()=>$('detail').close());$('reload').addEventListener('click',load);
 $('closeHomologacao').addEventListener('click',()=>$('homologacao').close());
 navigate(state.view);$('homologacao').showModal();load();
-
