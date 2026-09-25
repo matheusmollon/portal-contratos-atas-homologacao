@@ -15,6 +15,9 @@ function note(text,type=''){ $('notice').textContent=text;$('notice').className=
 function link(parent,url,label){if(!/^https:\/\/(?:pncp\.gov\.br|(?:[a-z0-9-]+\.)*comprasnet\.gov\.br|(?:[a-z0-9-]+\.)*compras\.gov\.br)(?:\/|$)/i.test(url||''))return;const a=el('a',label+' ↗');a.href=url;a.target='_blank';a.rel='noopener noreferrer';parent.append(a);}
 function badge(row){return el('span',row.situacao,'badge'+(row.situacao==='Vigente'?' live':''));}
 function field(dl,label,value){const wrap=el('div');wrap.append(el('dt',label),el('dd',value===null||value===undefined||value===''?'Não informado':value));dl.append(wrap);}
+const informed=v=>v!==null&&v!==undefined&&v!=='';
+function itemMetric(label,value,cls=''){const box=el('div',undefined,'item-metric '+cls);box.append(el('span',label),el('strong',value));return box;}
+function itemSection(title,cls=''){const section=el('section',undefined,'item-section '+cls);section.append(el('h5',title));const grid=el('div',undefined,'item-metrics');section.append(grid);return {section,grid};}
 const campusList=row=>String(row.campus||'Regional Norte').split('|').map(x=>x.trim()).filter(Boolean);
 const campusLabel=row=>campusList(row).join(', ');
 const campusMatch=(row,value)=>!value||campusList(row).includes(value);
@@ -113,14 +116,22 @@ function detail(row){
  if(row.tipo==='contrato')body.append(el('p','A consulta pública do SEI exibe as informações disponibilizadas pela instituição. O link abre a pesquisa; não preenche o número automaticamente.','hint'));
  if(row.tipo==='ata'){
   body.append(el('h3','Itens da ata'));
-  if(row.avisoItens){body.append(el('p',row.avisoItens+'. Consulte o documento da ata pelo link acima. Os itens serão consultados novamente na próxima atualização.','notice warning'));$('detail').showModal();return;}
+  if(row.avisoItens)body.append(el('p',row.avisoItens+' Os dados serão conferidos novamente na próxima atualização. Consulte também o documento oficial da ata.','notice warning'));
   const search=el('input');search.type='search';search.placeholder='Filtrar itens desta ata';search.className='detail-search';search.setAttribute('aria-label','Filtrar itens desta ata');body.append(search);
   body.append(el('p','Quantidade registrada não equivale a saldo disponível. Preços devem ser interpretados conforme a descrição do item.','hint'));
   const list=el('div',undefined,'item-list');body.append(list);
   const draw=()=>{list.replaceChildren();const q=norm(search.value),items=(state.items.get(row.id)||[]).filter(i=>norm([i.descricao,i.codigo,i.fornecedor].join(' ')).includes(q));
-   for(const item of items){const box=el('article',undefined,'item');box.append(el('strong','Item '+item.numero+' · '+item.tipo+' · Código '+(item.codigo||'não informado')));const p=el('p');p.append(mark(item.descricao,search.value));box.append(p,el('p',item.fornecedor),el('p','Documento do fornecedor: '+(item.documento||'Não informado')));
-   const meta=el('div',undefined,'item-meta');meta.append(el('span','Preço registrado: '+money(item.preco)),el('span','Quantidade do fornecedor: '+qty(item.quantidade)),el('span','Quantidade registrada: '+qty(item.quantidadeRegistrada)),el('span','Quantidade empenhada: '+qty(item.quantidadeEmpenhada)),el('span','Saldo para empenho: '+qty(item.saldoEmpenho)),el('span','Valor total do item: '+money(item.valor)),el('span','Saldo para adesões: '+qty(item.saldoAdesoes)),el('span','Limite de adesão: '+qty(item.qtdLimiteAdesao)),el('span','Limite informado na compra: '+qty(item.qtdLimiteInformadoCompra)),el('span','Aceita adesão: '+yesNo(item.aceitaAdesao)),el('span','Saldo atualizado na fonte: '+dateTime(item.dataHoraAtualizacao)),el('span','Unidade de fornecimento: não informada'));
-   if(item.desconto)meta.append(el('span','Maior desconto: '+qty(item.desconto)+'%'));box.append(meta);
+   for(const item of items){const box=el('article',undefined,'item'),head=el('div',undefined,'item-head'),title=el('div');title.append(el('span','ITEM '+item.numero,'item-number'),el('h4','Descrição do item'));const tags=el('div',undefined,'item-tags');tags.append(el('span',item.tipo||'Tipo não informado'),el('span','Código '+(item.codigo||'não informado')));head.append(title,tags);box.append(head);
+   const description=el('p',undefined,'item-description');description.append(mark(item.descricao||'Descrição não informada',search.value));box.append(description);
+   const supplier=el('div',undefined,'item-supplier'),supplierText=el('div');supplierText.append(el('span','FORNECEDOR'),el('strong',item.fornecedor||'Não informado'));supplier.append(supplierText,el('span','CNPJ/CPF: '+(item.documento||'Não informado'),'supplier-document'));box.append(supplier);
+   const commercial=itemSection('Valores registrados','commercial');commercial.grid.append(itemMetric('Preço unitário',money(item.preco),'highlight'),itemMetric('Quantidade do fornecedor',qty(item.quantidade)),itemMetric('Valor total',money(item.valor),'highlight'));
+   if(informed(item.desconto)&&Number(item.desconto)!==0)commercial.grid.append(itemMetric('Maior desconto',qty(item.desconto)+'%'));box.append(commercial.section);
+   const hasBalance=[item.quantidadeRegistrada,item.quantidadeEmpenhada,item.saldoEmpenho,item.dataHoraAtualizacao].some(informed),balance=itemSection('Utilização e saldo','balance');
+   if(hasBalance)balance.grid.append(itemMetric('Quantidade registrada',qty(item.quantidadeRegistrada)),itemMetric('Quantidade empenhada',qty(item.quantidadeEmpenhada)),itemMetric('Saldo para empenho',qty(item.saldoEmpenho),'balance-value'),itemMetric('Atualização na fonte',dateTime(item.dataHoraAtualizacao),'wide'));
+   else balance.grid.append(el('p','Os dados de utilização ainda não foram disponibilizados pela fonte oficial.','item-empty'));box.append(balance.section);
+   const hasAdhesion=[item.saldoAdesoes,item.qtdLimiteAdesao,item.qtdLimiteInformadoCompra,item.aceitaAdesao].some(informed),adhesion=itemSection('Adesões','adhesion');
+   if(hasAdhesion)adhesion.grid.append(itemMetric('Saldo para adesões',qty(item.saldoAdesoes)),itemMetric('Limite de adesão',qty(item.qtdLimiteAdesao)),itemMetric('Limite informado na compra',qty(item.qtdLimiteInformadoCompra)),itemMetric('Aceita adesão',yesNo(item.aceitaAdesao),item.aceitaAdesao===true?'positive':''));
+   else adhesion.grid.append(el('p','As informações de adesão ainda não foram disponibilizadas pela fonte oficial.','item-empty'));box.append(adhesion.section);
    if(Array.isArray(item.unidadesAdesao)&&item.unidadesAdesao.length){const more=el('details',undefined,'adhesion-details'),sum=el('summary','Detalhamento por unidade ('+item.unidadesAdesao.length+')'),units=el('div',undefined,'adhesion-list');more.append(sum);
     item.unidadesAdesao.forEach(u=>{const unit=el('div',undefined,'adhesion-unit');unit.append(el('strong',(u.nomeUnidade||u.codigoUnidade||'Unidade não informada')+(u.tipoUnidade?' · '+u.tipoUnidade:'')),el('span','Fornecedor: '+(u.fornecedor||'Não informado')),el('span','Saldo de adesões: '+qty(u.saldoAdesoes)),el('span','Limite de adesão: '+qty(u.qtdLimiteAdesao)),el('span','Limite informado: '+qty(u.qtdLimiteInformadoCompra)),el('span','Aceita adesão: '+yesNo(u.aceitaAdesao)));units.append(unit);});more.append(units);box.append(more);}
    list.append(box);}
