@@ -16,8 +16,20 @@ function link(parent,url,label){if(!/^https:\/\/(?:pncp\.gov\.br|(?:[a-z0-9-]+\.
 function badge(row){return el('span',row.situacao,'badge'+(row.situacao==='Vigente'?' live':''));}
 function field(dl,label,value){const wrap=el('div');wrap.append(el('dt',label),el('dd',value===null||value===undefined||value===''?'Não informado':value));dl.append(wrap);}
 const informed=v=>v!==null&&v!==undefined&&v!=='';
-function itemMetric(label,value,cls=''){const box=el('div',undefined,'item-metric '+cls);box.append(el('span',label),el('strong',value));return box;}
+function itemMetric(label,value,cls='',help=''){const box=el('div',undefined,'item-metric '+cls);box.append(el('span',label),el('strong',value));if(help)box.append(el('small',help));return box;}
 function itemSection(title,cls=''){const section=el('section',undefined,'item-section '+cls);section.append(el('h5',title));const grid=el('div',undefined,'item-metrics');section.append(grid);return {section,grid};}
+function empenhoValue(item,campo,formatador){
+ if(item.statusConsultaEmpenho==='INDISPONIVEL')return 'Consulta temporariamente indisponível';
+ if(item.statusConsultaEmpenho==='SEM_MOVIMENTACAO')return 'Sem movimentação registrada';
+ if((item.camposEmpenhoNaoInformados||[]).includes(campo)||!informed(item[campo]))return 'Não informado pela fonte oficial';
+ return formatador(item[campo]);
+}
+function empenhoAviso(item){
+ if(item.statusConsultaEmpenho==='SEM_MOVIMENTACAO')return 'A fonte oficial foi consultada, mas não retornou movimentações de empenho para este item.';
+ if(item.statusConsultaEmpenho==='INDISPONIVEL')return 'Não foi possível consultar empenhos e saldos nesta atualização. O coletor tentará novamente na próxima atualização.';
+ if(item.statusConsultaEmpenho==='CAMPO_NAO_INFORMADO')return 'O registro foi localizado, mas a fonte oficial deixou um ou mais campos sem preenchimento.';
+ return '';
+}
 const campusList=row=>String(row.campus||'Regional Norte').split('|').map(x=>x.trim()).filter(Boolean);
 const campusLabel=row=>campusList(row).join(', ');
 const campusMatch=(row,value)=>!value||campusList(row).includes(value);
@@ -126,14 +138,30 @@ function detail(row){
    const supplier=el('div',undefined,'item-supplier'),supplierText=el('div');supplierText.append(el('span','FORNECEDOR'),el('strong',item.fornecedor||'Não informado'));supplier.append(supplierText,el('span','CNPJ/CPF: '+(item.documento||'Não informado'),'supplier-document'));box.append(supplier);
    const commercial=itemSection('Valores registrados','commercial');commercial.grid.append(itemMetric('Preço unitário',money(item.preco),'highlight'),itemMetric('Quantidade do fornecedor',qty(item.quantidade)),itemMetric('Valor total',money(item.valor),'highlight'));
    if(informed(item.desconto)&&Number(item.desconto)!==0)commercial.grid.append(itemMetric('Maior desconto',qty(item.desconto)+'%'));box.append(commercial.section);
-   const hasBalance=[item.quantidadeRegistrada,item.quantidadeEmpenhada,item.saldoEmpenho,item.dataHoraAtualizacao].some(informed),balance=itemSection('Utilização e saldo','balance');
-   if(hasBalance)balance.grid.append(itemMetric('Quantidade registrada',qty(item.quantidadeRegistrada)),itemMetric('Quantidade empenhada',qty(item.quantidadeEmpenhada)),itemMetric('Saldo para empenho',qty(item.saldoEmpenho),'balance-value'),itemMetric('Atualização na fonte',dateTime(item.dataHoraAtualizacao),'wide'));
-   else balance.grid.append(el('p','Os dados de utilização ainda não foram disponibilizados pela fonte oficial.','item-empty'));box.append(balance.section);
-   const hasAdhesion=[item.saldoAdesoes,item.qtdLimiteAdesao,item.qtdLimiteInformadoCompra,item.aceitaAdesao].some(informed),adhesion=itemSection('Adesões','adhesion');
-   if(hasAdhesion)adhesion.grid.append(itemMetric('Saldo para adesões',qty(item.saldoAdesoes)),itemMetric('Limite de adesão',qty(item.qtdLimiteAdesao)),itemMetric('Limite informado na compra',qty(item.qtdLimiteInformadoCompra)),itemMetric('Aceita adesão',yesNo(item.aceitaAdesao),item.aceitaAdesao===true?'positive':''));
-   else adhesion.grid.append(el('p','As informações de adesão ainda não foram disponibilizadas pela fonte oficial.','item-empty'));box.append(adhesion.section);
+   const balance=itemSection('Empenhos e saldo','balance'),balanceNotice=empenhoAviso(item);
+   if(balanceNotice)balance.section.insertBefore(el('p',balanceNotice,'balance-state '+String(item.statusConsultaEmpenho||'').toLowerCase()),balance.grid);
+   balance.grid.append(
+    itemMetric('Quantidade registrada',informed(item.quantidadeRegistrada)?qty(item.quantidadeRegistrada):'Não informada pela fonte oficial','','Quantidade originalmente registrada para este item.'),
+    itemMetric('Quantidade já empenhada',empenhoValue(item,'quantidadeEmpenhada',qty),'','Quantidade que já possui empenho registrado na fonte oficial.'),
+    itemMetric('Saldo disponível para empenho',empenhoValue(item,'saldoEmpenho',qty),'balance-value','Quantidade que a fonte oficial indica como ainda disponível para empenho.'),
+    itemMetric('Última atualização do saldo',empenhoValue(item,'dataHoraAtualizacao',dateTime),'wide','Data e hora da última atualização publicada pela fonte oficial.')
+   );box.append(balance.section);
+   const hasAdhesion=[item.saldoAdesoes,item.qtdLimiteAdesao,item.qtdLimiteInformadoCompra,item.aceitaAdesao,item.quantidadeAprovadaAdesao].some(informed),adhesion=itemSection('Possibilidade de adesão por outros órgãos','adhesion');
+   adhesion.section.insertBefore(el('p','Adesão é a utilização da ata por um órgão que não participou originalmente da licitação. Ela depende de autorização do órgão gerenciador, aceite do fornecedor e análise de vantagem.','adhesion-intro'),adhesion.grid);
+   if(hasAdhesion)adhesion.grid.append(
+    itemMetric('Saldo disponível para novas adesões',qty(item.saldoAdesoes),'balance-value','Quantidade que o sistema ainda indica como disponível para pedidos de outros órgãos.'),
+    itemMetric('Limite máximo de adesões',qty(item.qtdLimiteAdesao),'','Teto de quantidade controlado pelo sistema para adesões deste item.'),
+    itemMetric('Limite previsto na compra',qty(item.qtdLimiteInformadoCompra),'','Quantidade para adesões registrada originalmente no procedimento de compra.'),
+    itemMetric('Admite pedidos de adesão',yesNo(item.aceitaAdesao),item.aceitaAdesao===true?'positive':'','“Sim” permite solicitar, mas não representa autorização automática.'),
+    itemMetric('Quantidade já aprovada para adesões',qty(item.quantidadeAprovadaAdesao),'wide','Soma das adesões aprovadas publicadas pela fonte oficial. Zero significa que nenhuma aprovação foi retornada.')
+   );
+   else adhesion.grid.append(el('p','A fonte oficial ainda não disponibilizou informações de adesão para este item.','item-empty'));box.append(adhesion.section);
    if(Array.isArray(item.unidadesAdesao)&&item.unidadesAdesao.length){const more=el('details',undefined,'adhesion-details'),sum=el('summary','Detalhamento por unidade ('+item.unidadesAdesao.length+')'),units=el('div',undefined,'adhesion-list');more.append(sum);
-    item.unidadesAdesao.forEach(u=>{const unit=el('div',undefined,'adhesion-unit');unit.append(el('strong',(u.nomeUnidade||u.codigoUnidade||'Unidade não informada')+(u.tipoUnidade?' · '+u.tipoUnidade:'')),el('span','Fornecedor: '+(u.fornecedor||'Não informado')),el('span','Saldo de adesões: '+qty(u.saldoAdesoes)),el('span','Limite de adesão: '+qty(u.qtdLimiteAdesao)),el('span','Limite informado: '+qty(u.qtdLimiteInformadoCompra)),el('span','Aceita adesão: '+yesNo(u.aceitaAdesao)));units.append(unit);});more.append(units);box.append(more);}
+    item.unidadesAdesao.forEach(u=>{const unit=el('div',undefined,'adhesion-unit');unit.append(el('strong',(u.nomeUnidade||u.codigoUnidade||'Unidade não informada')+(u.tipoUnidade?' · '+u.tipoUnidade:'')),el('span','Fornecedor: '+(u.fornecedor||'Não informado')),el('span','Saldo para novas adesões: '+qty(u.saldoAdesoes)),el('span','Limite máximo: '+qty(u.qtdLimiteAdesao)),el('span','Limite previsto na compra: '+qty(u.qtdLimiteInformadoCompra)),el('span','Admite pedidos: '+yesNo(u.aceitaAdesao)));units.append(unit);});more.append(units);box.append(more);}
+   if(Array.isArray(item.adesoesAprovadas)&&item.adesoesAprovadas.length){const approved=el('details',undefined,'approved-details'),summary=el('summary','Adesões já aprovadas ('+item.adesoesAprovadas.length+')'),list=el('div',undefined,'approved-list');approved.append(summary);
+    item.adesoesAprovadas.forEach(a=>{const row=el('div',undefined,'approved-row');row.append(el('strong',a.unidadeNaoParticipante||'Órgão não participante não informado'),el('span','Quantidade aprovada: '+qty(a.quantidadeAprovadaAdesao)),el('span','Data da aprovação: '+dateTime(a.dataAprovacaoAnalise)));list.append(row);});approved.append(list);box.append(approved);}
+   else if(item.statusConsultaAdesoes==='INDISPONIVEL')box.append(el('p','A consulta de adesões aprovadas estava temporariamente indisponível. Ela será repetida na próxima atualização.','no-approved'));
+   else box.append(el('p','Nenhuma adesão aprovada foi localizada na fonte oficial para este item. Isso não impede a apresentação de novos pedidos quando a ata admitir adesões e houver saldo.','no-approved'));
    list.append(box);}
    if(!items.length)list.append(el('p','Nenhum item encontrado para este filtro.'));};search.addEventListener('input',draw);draw();
  }
