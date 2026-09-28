@@ -1121,6 +1121,10 @@ dialog {
     color: #624500
 }
 
+.external-pncp-notice {
+    margin: 8px 0 18px
+}
+
 .external-card .external-ata-link {
     font-size: 23px;
     line-height: 1.3;
