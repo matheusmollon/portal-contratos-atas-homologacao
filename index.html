@@ -150,7 +150,8 @@
         </div>
         <nav aria-label="Navegação principal"><button data-view="inicio">Início</button><button
                 data-view="contratos">Contratos</button><button data-view="atas">Atas e itens</button><button
-                data-view="atas-externas">Atas externas</button><button data-view="orientacoes">Orientações</button>
+                data-view="atas-externas">Atas externas</button><button
+                data-view="oportunidades">Oportunidades</button><button data-view="orientacoes">Orientações</button>
         </nav>
     </header>
     <main id="principal" tabindex="-1">
@@ -243,13 +244,49 @@
                     id="externalPageInfo"></span><button id="externalNext" class="secondary" disabled>Próxima →</button>
             </div>
         </section>
+        <section id="opportunities" hidden>
+            <div class="heading">
+                <div><span class="eyebrow">CONSULTA DIRETA AO PNCP</span>
+                    <h1>Oportunidades</h1>
+                    <p>Dispensas, pregões e concorrências eletrônicas com recebimento de propostas aberto ou programado
+                        nos campi da Regional Norte.</p>
+                </div><button type="button" id="opportunityReload" class="secondary">Atualizar consulta</button>
+            </div>
+            <form id="opportunityFilters" class="filters opportunity-filters">
+                <div class="field grow"><label for="opportunityQuery">Palavra-chave</label><input id="opportunityQuery"
+                        type="search" maxlength="160" placeholder="Ex.: manutenção, mobiliário ou equipamentos"></div>
+                <div class="field"><label for="opportunityCampus">Unidade</label><select id="opportunityCampus">
+                        <option value="">Todas as unidades</option>
+                        <option value="153176">Regional Norte · 153176</option>
+                        <option value="150148">Londrina · 150148</option>
+                        <option value="150149">Apucarana · 150149</option>
+                    </select></div>
+                <div class="field"><label for="opportunityModality">Modalidade</label><select id="opportunityModality">
+                        <option value="">Todas</option>
+                        <option value="8">Dispensa de licitação</option>
+                        <option value="6">Pregão eletrônico</option>
+                        <option value="4">Concorrência eletrônica</option>
+                    </select></div><button type="submit" class="primary">Filtrar</button><button type="button"
+                    id="opportunityClear" class="secondary">Limpar</button>
+            </form>
+            <p class="external-scope"><strong>Filtros da fonte:</strong> UTFPR · UASGs 153176, 150148 e 150149 · somente
+                oportunidades com propostas abertas ou com abertura futura.</p>
+            <p class="pncp-notice external-pncp-notice">Esta consulta depende diretamente do PNCP. Os prazos e
+                documentos devem ser confirmados no sistema oficial antes da participação.</p>
+            <div id="opportunityStatus" class="result-count" role="status" aria-live="polite">Aguardando consulta ao
+                PNCP.</div>
+            <div id="opportunityCards" class="cards opportunity-cards"></div>
+            <div class="pagination"><button id="opportunityPrev" class="secondary" disabled>← Anterior</button><span
+                    id="opportunityPageInfo"></span><button id="opportunityNext" class="secondary" disabled>Próxima
+                    →</button></div>
+        </section>
         <section id="guidance" hidden><span class="eyebrow">SOBRE A CONSULTA</span>
             <h1>Orientações</h1>
             <div class="info-box">
                 <h2>Desenvolvimento e suporte</h2>
                 <p>Este portal foi desenvolvido pela DIOMAI do Campus Cornélio Procópio da UTFPR para facilitar a gestão
                     e a consulta de contratos, atas de registro de preços e seus itens.</p>
-                <p>Problemas e falhas de funcionamento podem ser reportados à DIOMAI-CP.</p>
+                <p>Problemas e falhas de funcionamento podem ser reportados à DIOMAI-CP. </p>
                 <h2>O que você encontra aqui</h2>
                 <p>Contratos vinculados às UGs 153176 (Núcleo Regional Norte), 150148 (Campus Londrina) e 150149 (Campus
                     Apucarana), inclusive quando o instrumento não está vinculado à UG regional. As atas permanecem
