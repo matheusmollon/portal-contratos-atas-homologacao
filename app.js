@@ -3,6 +3,10 @@
 const $ = id => document.getElementById(id);
 const state = { data: null, view: document.body.dataset.tela || 'inicio', page: 1, size: 12, items: new Map(), busy: false };
 const externalState = { page: 1, size: 25, total: 0, busy: false, query: '', cache: new Map(), controller: null, loaded: false };
+const opportunityState = { page: 1, size: 12, busy: false, loaded: false, items: [], controller: null };
+const OPPORTUNITY_UASGS = ['153176', '150148', '150149'];
+const OPPORTUNITY_MODALITIES = [8, 6, 4];
+const UTFPR_CNPJ = '75101873000190';
 const hojeSP = () => { const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date()); const get = k => parts.find(p => p.type === k).value; return get('year') + '-' + get('month') + '-' + get('day'); };
 function situacaoLocal(row, hoje) { if (row.excluido === true || /cancelad|inativ|rescind|suspens/.test(norm(row.situacaoOrigem))) return 'Inativo'; if (!/^\d{4}-\d{2}-\d{2}$/.test(row.inicio || '') || !/^\d{4}-\d{2}-\d{2}$/.test(row.fim || '') || row.inicio > row.fim) return 'Não confirmada'; if (row.inicio > hoje) return 'A iniciar'; if (row.fim < hoje) return 'Encerrado'; return 'Vigente'; }
 const norm = v => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -87,11 +91,11 @@ function load() {
 }
 function navigate(view) {
   state.view = view; state.page = 1; $('query').value = ''; $('campus').value = ''; $('year').value = ''; $('status').value = 'Vigente';
-  $('home').hidden = view !== 'inicio'; $('catalog').hidden = !['contratos', 'atas', 'todos'].includes(view); $('externalAtas').hidden = view !== 'atas-externas'; $('guidance').hidden = view !== 'orientacoes';
+  $('home').hidden = view !== 'inicio'; $('catalog').hidden = !['contratos', 'atas', 'todos'].includes(view); $('externalAtas').hidden = view !== 'atas-externas'; $('opportunities').hidden = view !== 'oportunidades'; $('guidance').hidden = view !== 'orientacoes';
   document.querySelectorAll('nav [data-view]').forEach(b => { b.classList.toggle('active', b.dataset.view === view); if (b.dataset.view === view) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   $('catalogTitle').textContent = view === 'atas' ? 'Atas e itens' : view === 'todos' ? 'Resultados da pesquisa' : 'Contratos';
   $('catalogSub').textContent = view === 'atas' ? 'Pesquise atas por ano ou encontre um item registrado.' : 'Consulte por ano do instrumento, objeto e fornecedor.';
-  years(); render(); if (view === 'atas-externas' && !externalState.loaded) consultarAtasExternas(1);
+  years(); render(); if (view === 'atas-externas' && !externalState.loaded) consultarAtasExternas(1); if (view === 'oportunidades' && !opportunityState.loaded) consultarOportunidades();
 }
 
 function linkAtaExterna(item) {
@@ -133,6 +137,46 @@ function consultarAtasExternas(page) {
   }).catch(err => {
     $('externalCards').replaceChildren(); const box = el('div', undefined, 'external-error'), message = err.name === 'AbortError' ? 'A consulta ao PNCP excedeu o tempo de espera.' : 'O PNCP não respondeu à consulta neste momento.'; box.append(el('p', message)); const retry = el('button', 'Tentar novamente', 'secondary'); retry.addEventListener('click', () => consultarAtasExternas(externalState.page)); box.append(retry); $('externalCards').append(box); $('externalStatus').textContent = 'Consulta externa temporariamente indisponível.'; $('externalPageInfo').textContent = '';
   }).finally(() => { clearTimeout(timeout); externalState.busy = false; $('externalSearch').disabled = false; $('externalPrev').disabled = externalState.page <= 1; $('externalNext').disabled = !externalState.total || externalState.page >= Math.ceil(externalState.total / externalState.size); });
+}
+function opportunityUrl(item) {
+  const raw = String(item.linkSistemaOrigem || '').trim();
+  if (/^https:\/\/[^\s]+$/i.test(raw)) return raw;
+  const id = String(item.numeroControlePNCP || ''), m = id.match(/^(\d{14})-1-(\d{6})\/(\d{4})$/);
+  return m ? 'https://pncp.gov.br/app/editais/' + m[1] + '/' + m[3] + '/' + Number(m[2]) : '';
+}
+function opportunitySituation(item) {
+  const now = Date.now(), start = Date.parse(item.dataAberturaProposta), end = Date.parse(item.dataEncerramentoProposta);
+  if (Number.isFinite(end) && end < now) return 'Prazo encerrado';
+  if (Number.isFinite(start) && start > now) return 'Abre em breve';
+  return 'Recebendo propostas';
+}
+function opportunityUnit(item) { return String(item.unidadeOrgao?.codigoUnidade || ''); }
+function opportunitySessionDate(item) {
+  const end = Date.parse(item.dataEncerramentoProposta), source = String(item.linkSistemaOrigem || '');
+  if (!Number.isFinite(end) || !/compras(?:net)?|cnetmobile/i.test(source)) return 'Não informada separadamente pelo PNCP';
+  return dateTime(new Date(end + 60000).toISOString()) + ' · previsão';
+}
+function filteredOpportunities() {
+  const q = norm($('opportunityQuery').value.trim()), ug = $('opportunityCampus').value, mod = $('opportunityModality').value;
+  return opportunityState.items.filter(x => (!ug || opportunityUnit(x) === ug) && (!mod || String(x.modalidadeId) === mod) && (!q || norm([x.objetoCompra, x.numeroCompra, x.processo, x.modalidadeNome, x.unidadeOrgao?.nomeUnidade].join(' ')).includes(q)) && opportunitySituation(x) !== 'Prazo encerrado');
+}
+function renderOpportunities() {
+  const items = filteredOpportunities().sort((a, b) => String(a.dataEncerramentoProposta || '').localeCompare(String(b.dataEncerramentoProposta || ''))), pages = Math.max(1, Math.ceil(items.length / opportunityState.size));
+  opportunityState.page = Math.min(opportunityState.page, pages); $('opportunityCards').replaceChildren();
+  for (const item of items.slice((opportunityState.page - 1) * opportunityState.size, opportunityState.page * opportunityState.size)) {
+    const card = el('article', undefined, 'card opportunity-card'), top = el('div', undefined, 'card-top'), status = opportunitySituation(item), url = opportunityUrl(item);
+    top.append(el('h2', (item.modalidadeNome || 'Oportunidade') + ' ' + (item.numeroCompra || '')), el('span', status, 'badge ' + (status === 'Recebendo propostas' ? 'live' : 'soon'))); card.append(top, el('p', item.objetoCompra || 'Objeto não informado pelo PNCP.', 'object'));
+    const dl = el('dl'); field(dl, 'UNIDADE', ((item.unidadeOrgao?.nomeUnidade || 'Não informada') + (opportunityUnit(item) ? ' · ' + opportunityUnit(item) : ''))); campoProcesso(dl, item.processo); field(dl, 'VALOR ESTIMADO', money(item.valorTotalEstimado)); field(dl, 'INÍCIO DO RECEBIMENTO DAS PROPOSTAS', dateTime(item.dataAberturaProposta)); field(dl, 'FIM DO RECEBIMENTO DAS PROPOSTAS', dateTime(item.dataEncerramentoProposta)); field(dl, 'DATA PREVISTA PARA ABERTURA DA SESSÃO PÚBLICA', opportunitySessionDate(item)); field(dl, 'MODO DE DISPUTA', item.modoDisputaNome); card.append(dl, el('p', 'A abertura da sessão é uma previsão calculada para o minuto seguinte ao encerramento das propostas no Compras.gov.br. Confirme o horário no edital e no sistema oficial.', 'session-hint'));
+    if (url) { const a = el('a', 'Consultar ou participar ↗', 'primary opportunity-open'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; card.append(a); } $('opportunityCards').append(card);
+  }
+  if (!items.length) $('opportunityCards').append(el('p', 'Nenhuma oportunidade aberta ou programada foi encontrada para os filtros selecionados.', 'empty'));
+  $('opportunityStatus').textContent = items.length + ' oportunidade(s) encontrada(s) nas três unidades.'; $('opportunityPageInfo').textContent = 'Página ' + opportunityState.page + ' de ' + pages; $('opportunityPrev').disabled = opportunityState.page <= 1; $('opportunityNext').disabled = opportunityState.page >= pages;
+}
+function consultarOportunidades(force = false) {
+  if (opportunityState.busy) return; if (opportunityState.loaded && !force) { renderOpportunities(); return; } opportunityState.busy = true; $('opportunityStatus').textContent = 'Consultando oportunidades no PNCP…'; $('opportunityCards').replaceChildren(); $('opportunityReload').disabled = true;
+  if (opportunityState.controller) opportunityState.controller.abort(); opportunityState.controller = new AbortController(); const signal = opportunityState.controller.signal, limit = new Date(); limit.setFullYear(limit.getFullYear() + 1); const dataFinal = limit.toISOString().slice(0, 10).replaceAll('-', '');
+  const calls = []; for (const ug of OPPORTUNITY_UASGS) for (const modality of OPPORTUNITY_MODALITIES) { const p = new URLSearchParams({ dataFinal, codigoModalidadeContratacao: String(modality), cnpj: UTFPR_CNPJ, codigoUnidadeAdministrativa: ug, pagina: '1', tamanhoPagina: '50' }); calls.push(fetch('https://pncp.gov.br/api/consulta/v1/contratacoes/proposta?' + p, { headers: { Accept: 'application/json' }, signal }).then(async r => r.status === 204 ? [] : (r.ok ? (await r.json()).data || [] : Promise.reject(new Error('HTTP ' + r.status))))); }
+  const timeout = setTimeout(() => opportunityState.controller.abort(), 30000); Promise.all(calls).then(groups => { const unique = new Map(); groups.flat().forEach(x => { if (x && OPPORTUNITY_UASGS.includes(opportunityUnit(x))) unique.set(x.numeroControlePNCP || opportunityUnit(x) + '|' + x.numeroCompra + '|' + x.anoCompra, x); }); opportunityState.items = [...unique.values()]; opportunityState.loaded = true; opportunityState.page = 1; renderOpportunities(); }).catch(err => { const box = el('div', undefined, 'external-error'); box.append(el('p', err.name === 'AbortError' ? 'A consulta ao PNCP excedeu o tempo de espera.' : 'O PNCP não respondeu à consulta de oportunidades neste momento.')); const retry = el('button', 'Tentar novamente', 'secondary'); retry.addEventListener('click', () => consultarOportunidades(true)); box.append(retry); $('opportunityCards').append(box); $('opportunityStatus').textContent = 'Consulta temporariamente indisponível.'; }).finally(() => { clearTimeout(timeout); opportunityState.busy = false; $('opportunityReload').disabled = false; });
 }
 function rows() { if (!state.data) return []; const c = state.data.contratos.map(x => ({ ...x, tipo: 'contrato' })), a = state.data.atas.map(x => ({ ...x, tipo: 'ata' })); return state.view === 'atas' ? a : state.view === 'todos' ? c.concat(a) : c; }
 function years() { const old = $('year').value; $('year').replaceChildren(new Option('Todos os anos', ''));[...new Set(rows().map(x => x.ano))].sort().reverse().forEach(y => $('year').add(new Option(y, y))); $('year').value = old; if ($('year').selectedIndex < 0) $('year').value = ''; }
@@ -231,6 +275,10 @@ $('externalFilters').addEventListener('submit', e => { e.preventDefault(); exter
 $('externalClear').addEventListener('click', () => { $('externalQuery').value = ''; externalState.page = 1; consultarAtasExternas(1); });
 $('externalPrev').addEventListener('click', () => consultarAtasExternas(Math.max(1, externalState.page - 1)));
 $('externalNext').addEventListener('click', () => consultarAtasExternas(externalState.page + 1));
+$('opportunityFilters').addEventListener('submit', e => { e.preventDefault(); opportunityState.page = 1; renderOpportunities(); });
+$('opportunityClear').addEventListener('click', () => { $('opportunityQuery').value = ''; $('opportunityCampus').value = ''; $('opportunityModality').value = ''; opportunityState.page = 1; renderOpportunities(); });
+$('opportunityReload').addEventListener('click', () => consultarOportunidades(true));
+$('opportunityPrev').addEventListener('click', () => { opportunityState.page--; renderOpportunities(); }); $('opportunityNext').addEventListener('click', () => { opportunityState.page++; renderOpportunities(); });
 let timer; $('query').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => { state.page = 1; render(); }, 150); });
 ['campus', 'year', 'status'].forEach(id => $(id).addEventListener('change', () => { state.page = 1; render(); }));
 $('clear').addEventListener('click', () => { $('query').value = ''; $('campus').value = ''; $('year').value = ''; $('status').value = 'Vigente'; state.page = 1; render(); });
