@@ -1183,6 +1183,55 @@ dialog {
     }
 }
 
+.opportunity-card .badge.soon {
+    background: #fff2c4;
+    color: #765400
+}
+
+.opportunity-open {
+    align-self: flex-start;
+    text-decoration: none;
+    margin-top: auto
+}
+
+.opportunity-card dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr))
+}
+
+.opportunity-filters select {
+    min-width: 185px
+}
+
+.session-hint {
+    font-size: 12px;
+    background: #f6f8fa;
+    border-left: 3px solid #ffcb05;
+    padding: 9px 11px;
+    color: #596270
+}
+
+@media(max-width:700px) {
+
+    .opportunity-filters .grow,
+    .opportunity-filters button {
+        width: 100%
+    }
+
+    .opportunity-filters .field {
+        min-width: 100%
+    }
+
+    .opportunity-card dl {
+        grid-template-columns: 1fr
+    }
+
+    .opportunity-open {
+        align-self: stretch;
+        text-align: center;
+        min-height: 44px
+    }
+}
+
 /* Apresentação amigável dos itens da ata. */
 .item-list {
     gap: 18px
