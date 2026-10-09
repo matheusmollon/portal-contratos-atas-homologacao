@@ -1,9 +1,12 @@
 
 'use strict';
 const $ = id => document.getElementById(id);
-const state = { data: null, view: document.body.dataset.tela || 'inicio', page: 1, size: 12, items: new Map(), busy: false };
+const requestedView = new URLSearchParams(location.search).get('view');
+const initialView = ['inicio', 'contratos', 'atas', 'pca', 'atas-externas', 'oportunidades', 'orientacoes'].includes(requestedView) ? requestedView : (document.body.dataset.tela || 'inicio');
+const state = { data: null, view: initialView, page: 1, size: 12, items: new Map(), busy: false };
 const externalState = { page: 1, size: 25, total: 0, busy: false, query: '', cache: new Map(), controller: null, loaded: false };
-const opportunityState = { page: 1, size: 12, busy: false, loaded: false, items: [], controller: null };
+const opportunityState = { page: 1, size: 12, busy: false, loaded: false, items: [], controller: null, failures: 0 };
+const pcaState = { busy: false, controller: null, year: null, sequencial: null, categories: [], items: new Map(), pages: new Map(), filters: new Map() };
 const OPPORTUNITY_UASGS = ['153176', '150148', '150149'];
 const OPPORTUNITY_MODALITIES = [8, 6, 4];
 const UTFPR_CNPJ = '75101873000190';
@@ -91,7 +94,7 @@ function load() {
 }
 function navigate(view) {
   state.view = view; state.page = 1; $('query').value = ''; $('campus').value = ''; $('year').value = ''; $('status').value = 'Vigente';
-  $('home').hidden = view !== 'inicio'; $('catalog').hidden = !['contratos', 'atas', 'todos'].includes(view); $('externalAtas').hidden = view !== 'atas-externas'; $('opportunities').hidden = view !== 'oportunidades'; $('guidance').hidden = view !== 'orientacoes';
+  $('home').hidden = view !== 'inicio'; $('catalog').hidden = !['contratos', 'atas', 'todos'].includes(view); $('externalAtas').hidden = view !== 'atas-externas'; $('opportunities').hidden = view !== 'oportunidades'; $('annualPlan').hidden = view !== 'pca'; $('guidance').hidden = view !== 'orientacoes';
   document.querySelectorAll('nav [data-view]').forEach(b => { b.classList.toggle('active', b.dataset.view === view); if (b.dataset.view === view) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   $('catalogTitle').textContent = view === 'atas' ? 'Atas e itens' : view === 'todos' ? 'Resultados da pesquisa' : 'Contratos';
   $('catalogSub').textContent = view === 'atas' ? 'Pesquise atas por ano ou encontre um item registrado.' : 'Consulte por ano do instrumento, objeto e fornecedor.';
@@ -170,13 +173,66 @@ function renderOpportunities() {
     if (url) { const a = el('a', 'Consultar ou participar ↗', 'primary opportunity-open'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; card.append(a); } $('opportunityCards').append(card);
   }
   if (!items.length) $('opportunityCards').append(el('p', 'Nenhuma oportunidade aberta ou programada foi encontrada para os filtros selecionados.', 'empty'));
-  $('opportunityStatus').textContent = items.length + ' oportunidade(s) encontrada(s) nas três unidades.'; $('opportunityPageInfo').textContent = 'Página ' + opportunityState.page + ' de ' + pages; $('opportunityPrev').disabled = opportunityState.page <= 1; $('opportunityNext').disabled = opportunityState.page >= pages;
+  $('opportunityStatus').textContent = items.length + ' oportunidade(s) encontrada(s) nas três unidades.' + (opportunityState.failures ? ' ' + opportunityState.failures + ' de 9 consulta(s) não responderam; os demais resultados foram preservados.' : ''); $('opportunityPageInfo').textContent = 'Página ' + opportunityState.page + ' de ' + pages; $('opportunityPrev').disabled = opportunityState.page <= 1; $('opportunityNext').disabled = opportunityState.page >= pages;
 }
 function consultarOportunidades(force = false) {
   if (opportunityState.busy) return; if (opportunityState.loaded && !force) { renderOpportunities(); return; } opportunityState.busy = true; $('opportunityStatus').textContent = 'Consultando oportunidades no PNCP…'; $('opportunityCards').replaceChildren(); $('opportunityReload').disabled = true;
   if (opportunityState.controller) opportunityState.controller.abort(); opportunityState.controller = new AbortController(); const signal = opportunityState.controller.signal, limit = new Date(); limit.setFullYear(limit.getFullYear() + 1); const dataFinal = limit.toISOString().slice(0, 10).replaceAll('-', '');
   const calls = []; for (const ug of OPPORTUNITY_UASGS) for (const modality of OPPORTUNITY_MODALITIES) { const p = new URLSearchParams({ dataFinal, codigoModalidadeContratacao: String(modality), cnpj: UTFPR_CNPJ, codigoUnidadeAdministrativa: ug, pagina: '1', tamanhoPagina: '50' }); calls.push(fetch('https://pncp.gov.br/api/consulta/v1/contratacoes/proposta?' + p, { headers: { Accept: 'application/json' }, signal }).then(async r => r.status === 204 ? [] : (r.ok ? (await r.json()).data || [] : Promise.reject(new Error('HTTP ' + r.status))))); }
-  const timeout = setTimeout(() => opportunityState.controller.abort(), 30000); Promise.all(calls).then(groups => { const unique = new Map(); groups.flat().forEach(x => { if (x && OPPORTUNITY_UASGS.includes(opportunityUnit(x))) unique.set(x.numeroControlePNCP || opportunityUnit(x) + '|' + x.numeroCompra + '|' + x.anoCompra, x); }); opportunityState.items = [...unique.values()]; opportunityState.loaded = true; opportunityState.page = 1; renderOpportunities(); }).catch(err => { const box = el('div', undefined, 'external-error'); box.append(el('p', err.name === 'AbortError' ? 'A consulta ao PNCP excedeu o tempo de espera.' : 'O PNCP não respondeu à consulta de oportunidades neste momento.')); const retry = el('button', 'Tentar novamente', 'secondary'); retry.addEventListener('click', () => consultarOportunidades(true)); box.append(retry); $('opportunityCards').append(box); $('opportunityStatus').textContent = 'Consulta temporariamente indisponível.'; }).finally(() => { clearTimeout(timeout); opportunityState.busy = false; $('opportunityReload').disabled = false; });
+  const timeout = setTimeout(() => opportunityState.controller.abort(), 30000); Promise.allSettled(calls).then(results => { const successful = results.filter(x => x.status === 'fulfilled'); if (!successful.length) throw new Error('Nenhuma consulta respondeu'); opportunityState.failures = results.length - successful.length; const unique = new Map(); successful.flatMap(x => x.value).forEach(x => { if (x && OPPORTUNITY_UASGS.includes(opportunityUnit(x))) unique.set(x.numeroControlePNCP || opportunityUnit(x) + '|' + x.numeroCompra + '|' + x.anoCompra, x); }); opportunityState.items = [...unique.values()]; opportunityState.loaded = true; opportunityState.page = 1; renderOpportunities(); }).catch(() => { const box = el('div', undefined, 'external-error'); box.append(el('p', 'O PNCP não respondeu à consulta de oportunidades neste momento.')); const retry = el('button', 'Tentar novamente', 'secondary'); retry.addEventListener('click', () => consultarOportunidades(true)); box.append(retry); $('opportunityCards').append(box); $('opportunityStatus').textContent = 'Consulta temporariamente indisponível.'; }).finally(() => { clearTimeout(timeout); opportunityState.busy = false; $('opportunityReload').disabled = false; });
+}
+function pcaFillYears() {
+  const select = $('pcaYear'), current = new Date().getFullYear(), old = select.value || String(current); select.replaceChildren();
+  for (let y = current + 1; y >= 2022; y--)select.add(new Option(String(y), String(y)));
+  select.value = [...select.options].some(o => o.value === old) ? old : String(current);
+}
+function pcaFetchJson(url, signal) { return fetch(url, { headers: { Accept: 'application/json' }, signal, cache: 'no-store' }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }); }
+function pcaDate(value, withTime = false) { const d = new Date(value); if (!value || !Number.isFinite(d.getTime())) return 'Não informada'; return withTime ? d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }); }
+function pcaOfficialUrl(year, seq) { return 'https://pncp.gov.br/app/pca/' + UTFPR_CNPJ + '/' + year + '/' + seq; }
+function pcaSummaryCard(label, value) { const box = el('article', undefined, 'pca-summary-card'); box.append(el('span', label), el('strong', value)); return box; }
+function pcaRenderItemRows(categoryId) {
+  const id = String(categoryId), all = pcaState.items.get(id) || [], query = norm(pcaState.filters.get(id) || ''), filtered = all.filter(x => !query || norm([x.classificacaoSuperiorCodigo, x.classificacaoSuperiorNome, x.grupoContratacaoCodigo, x.grupoContratacaoNome].join(' ')).includes(query));
+  const size = 10, pages = Math.max(1, Math.ceil(filtered.length / size)), page = Math.min(pcaState.pages.get(id) || 1, pages); pcaState.pages.set(id, page);
+  const body = $('pcaRows-' + id), info = $('pcaPageInfo-' + id), prev = $('pcaPrev-' + id), next = $('pcaNext-' + id); body.replaceChildren();
+  filtered.slice((page - 1) * size, page * size).forEach(item => {
+    const tr = el('tr');
+    const itemCell = el('td', String(item.numeroItem ?? 'Não informado')); itemCell.dataset.label = 'Item no PCA';
+    const classCell = el('td'); classCell.dataset.label = 'Classe/Grupo'; classCell.append(el('strong', [item.classificacaoSuperiorCodigo, item.classificacaoSuperiorNome].filter(Boolean).join(' - ') || 'Não informado')); if (item.grupoContratacaoNome) classCell.append(el('small', item.grupoContratacaoNome));
+    const groupCell = el('td', item.grupoContratacaoCodigo || 'Não informado'); groupCell.dataset.label = 'Futura contratação';
+    const desiredCell = el('td', pcaDate(item.dataDesejada)); desiredCell.dataset.label = 'Data desejada';
+    const valueCell = el('td', money(item.valorTotal)); valueCell.dataset.label = 'Valor estimado'; valueCell.className = 'pca-money'; tr.append(itemCell, classCell, groupCell, desiredCell, valueCell); body.append(tr);
+  });
+  if (!filtered.length) { const tr = el('tr'), td = el('td', 'Nenhum item encontrado para este filtro.', 'pca-table-empty'); td.colSpan = 5; tr.append(td); body.append(tr); }
+  info.textContent = filtered.length ? ((page - 1) * size + 1) + '-' + Math.min(page * size, filtered.length) + ' de ' + filtered.length + ' itens' : '0 itens'; prev.disabled = page <= 1; next.disabled = page >= pages;
+}
+function pcaRender(summary) {
+  const root = $('pcaContent'); root.replaceChildren();
+  const top = el('section', undefined, 'pca-overview'), heading = el('div', undefined, 'pca-overview-head'), title = el('div'); title.append(el('span', 'PCA ' + pcaState.year + ' · UASG ' + (summary.codigoUnidade || '153176'), 'eyebrow'), el('h2', summary.nomeUnidade || 'UTFPR - Núcleo Regional Norte'));
+  const source = el('a', 'Ver PCA no PNCP ↗', 'secondary pca-source'); source.href = pcaOfficialUrl(pcaState.year, pcaState.sequencial); source.target = '_blank'; source.rel = 'noopener noreferrer'; heading.append(title, source); top.append(heading);
+  const meta = el('div', undefined, 'pca-meta'); meta.append(pcaSummaryCard('Valor total estimado', money(summary.valorTotal)), pcaSummaryCard('Total de itens', Number(summary.quantidade || 0).toLocaleString('pt-BR')), pcaSummaryCard('Publicação no PNCP', pcaDate(summary.dataPublicacaoPncp)), pcaSummaryCard('Última atualização', pcaDate(summary.dataAtualizacao, true))); top.append(meta);
+  const details = el('dl', undefined, 'pca-details'); field(details, 'ID PCA PNCP', summary.numeroControlePNCP); field(details, 'LOCAL', [summary.municipio, summary.uf].filter(Boolean).join('/') || 'Não informado'); field(details, 'FONTE', summary.usuario || 'Não informada'); top.append(details); root.append(top);
+  const chart = el('section', undefined, 'pca-chart'); chart.append(el('h2', 'Valor estimado e quantidade de itens por categoria')); const max = Math.max(1, ...pcaState.categories.map(c => Number(c.valorTotal) || 0));
+  pcaState.categories.forEach(cat => { const row = el('div', undefined, 'pca-bar-row'), label = el('div', undefined, 'pca-bar-label'); label.append(el('strong', cat.categoriaItemNome), el('span', Number(cat.quantidadeItens || 0).toLocaleString('pt-BR') + ' item(ns)')); const track = el('div', undefined, 'pca-bar-track'), bar = el('div', undefined, 'pca-bar'); bar.style.width = Math.max(0, Math.min(100, (Number(cat.valorTotal || 0) / max) * 100)) + '%'; track.setAttribute('aria-hidden', 'true'); track.append(bar); const value = el('strong', money(cat.valorTotal), 'pca-bar-value'); row.append(label, track, value); chart.append(row); }); root.append(chart, el('h2', 'Detalhamento por categoria', 'pca-detail-title'));
+  pcaState.categories.forEach((cat, index) => {
+    const id = String(cat.categoriaItemId), section = el('details', undefined, 'pca-category'); if (index === 0) section.open = true; const summaryEl = el('summary'), summaryText = el('span'); summaryText.append(el('strong', cat.categoriaItemNome), el('small', Number(cat.quantidadeItens || 0).toLocaleString('pt-BR') + ' item(ns) · ' + money(cat.valorTotal))); summaryEl.append(summaryText, el('span', '⌄', 'pca-chevron')); section.append(summaryEl);
+    const inner = el('div', undefined, 'pca-category-body'), search = el('input'); search.type = 'search'; search.maxLength = 160; search.placeholder = 'Filtrar por classe, grupo ou futura contratação'; search.className = 'pca-category-search'; search.setAttribute('aria-label', 'Filtrar itens da categoria ' + cat.categoriaItemNome); search.addEventListener('input', () => { pcaState.filters.set(id, search.value); pcaState.pages.set(id, 1); pcaRenderItemRows(id); }); inner.append(search);
+    const wrap = el('div', undefined, 'pca-table-wrap'), table = el('table', undefined, 'pca-table'), thead = el('thead'), hr = el('tr');['Item no PCA', 'Classe/Grupo', 'Futura contratação', 'Data desejada', 'Valor estimado'].forEach(x => hr.append(el('th', x))); thead.append(hr); const tbody = el('tbody'); tbody.id = 'pcaRows-' + id; table.append(thead, tbody); wrap.append(table); inner.append(wrap);
+    const pager = el('div', undefined, 'pca-pager'), prev = el('button', '← Anterior', 'secondary'), info = el('span'), next = el('button', 'Próxima →', 'secondary'); prev.type = next.type = 'button'; prev.id = 'pcaPrev-' + id; next.id = 'pcaNext-' + id; info.id = 'pcaPageInfo-' + id; prev.addEventListener('click', () => { pcaState.pages.set(id, (pcaState.pages.get(id) || 1) - 1); pcaRenderItemRows(id); }); next.addEventListener('click', () => { pcaState.pages.set(id, (pcaState.pages.get(id) || 1) + 1); pcaRenderItemRows(id); }); pager.append(prev, info, next); inner.append(pager); section.append(inner); root.append(section); pcaRenderItemRows(id);
+  });
+}
+async function consultarPca() {
+  if (pcaState.busy) return; const year = Number($('pcaYear').value); if (year < 2022 || year > new Date().getFullYear() + 1) return;
+  pcaState.busy = true; pcaState.year = year; $('pcaSearch').disabled = true; $('pcaStatus').textContent = 'Localizando o PCA da Regional Norte…'; $('pcaContent').replaceChildren(); if (pcaState.controller) pcaState.controller.abort(); pcaState.controller = new AbortController(); const signal = pcaState.controller.signal, base = 'https://pncp.gov.br/api/pncp/v1/orgaos/' + UTFPR_CNPJ + '/pca/' + year;
+  try {
+    const units = await pcaFetchJson(base + '/consolidado/unidades?pagina=1&tamanhoPagina=50', signal), regional = Array.isArray(units) ? units.find(x => String(x.codigoUnidade) === '153176') : null; if (!regional) throw new Error('PCA_NOT_FOUND');
+    pcaState.sequencial = regional.sequencialPca ?? regional.sequencialPCA; const plan = base + '/' + pcaState.sequencial;
+    $('pcaStatus').textContent = 'Carregando resumo e categorias…'; const [summary, categories] = await Promise.all([pcaFetchJson(plan + '/consolidado', signal), pcaFetchJson(plan + '/valorescategoriaitem', signal)]); if (!summary || !Array.isArray(categories)) throw new Error('INVALID_RESPONSE');
+    pcaState.categories = categories; pcaState.items.clear(); pcaState.pages.clear(); pcaState.filters.clear(); $('pcaStatus').textContent = 'Carregando itens das categorias…';
+    await Promise.all(categories.map(async cat => { const count = Number(cat.quantidadeItens) || 0, pages = Math.max(1, Math.ceil(count / 100)), urls = Array.from({ length: pages }, (_, i) => plan + '/itens?categoria=' + encodeURIComponent(cat.categoriaItemId) + '&pagina=' + (i + 1) + '&tamanhoPagina=100'), parts = await Promise.all(urls.map(url => pcaFetchJson(url, signal))), items = parts.flatMap(x => Array.isArray(x) ? x : (Array.isArray(x?.data) ? x.data : [])); pcaState.items.set(String(cat.categoriaItemId), items); pcaState.pages.set(String(cat.categoriaItemId), 1); }));
+    pcaRender(summary); $('pcaStatus').textContent = 'PCA ' + year + ' carregado: ' + Number(summary.quantidade || 0).toLocaleString('pt-BR') + ' item(ns) em ' + categories.length + ' categoria(s).';
+  } catch (err) {
+    const msg = err.message === 'PCA_NOT_FOUND' ? 'Não foi localizado PCA da UASG 153176 para ' + year + '.' : err.name === 'AbortError' ? 'A consulta foi interrompida.' : 'O PNCP não respondeu corretamente à consulta do PCA. Tente novamente em alguns instantes.'; $('pcaStatus').textContent = msg; const box = el('div', undefined, 'external-error'); box.append(el('p', msg)); const retry = el('button', 'Tentar novamente', 'secondary'); retry.addEventListener('click', consultarPca); box.append(retry); $('pcaContent').append(box);
+  } finally { pcaState.busy = false; $('pcaSearch').disabled = false; }
 }
 function rows() { if (!state.data) return []; const c = state.data.contratos.map(x => ({ ...x, tipo: 'contrato' })), a = state.data.atas.map(x => ({ ...x, tipo: 'ata' })); return state.view === 'atas' ? a : state.view === 'todos' ? c.concat(a) : c; }
 function years() { const old = $('year').value; $('year').replaceChildren(new Option('Todos os anos', ''));[...new Set(rows().map(x => x.ano))].sort().reverse().forEach(y => $('year').add(new Option(y, y))); $('year').value = old; if ($('year').selectedIndex < 0) $('year').value = ''; }
@@ -279,10 +335,11 @@ $('opportunityFilters').addEventListener('submit', e => { e.preventDefault(); op
 $('opportunityClear').addEventListener('click', () => { $('opportunityQuery').value = ''; $('opportunityCampus').value = ''; $('opportunityModality').value = ''; opportunityState.page = 1; renderOpportunities(); });
 $('opportunityReload').addEventListener('click', () => consultarOportunidades(true));
 $('opportunityPrev').addEventListener('click', () => { opportunityState.page--; renderOpportunities(); }); $('opportunityNext').addEventListener('click', () => { opportunityState.page++; renderOpportunities(); });
+$('pcaForm').addEventListener('submit', e => { e.preventDefault(); consultarPca(); });
 let timer; $('query').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => { state.page = 1; render(); }, 150); });
 ['campus', 'year', 'status'].forEach(id => $(id).addEventListener('change', () => { state.page = 1; render(); }));
 $('clear').addEventListener('click', () => { $('query').value = ''; $('campus').value = ''; $('year').value = ''; $('status').value = 'Vigente'; state.page = 1; render(); });
 $('prev').addEventListener('click', () => { state.page--; render(); }); $('next').addEventListener('click', () => { state.page++; render(); });
 $('closeDetail').addEventListener('click', () => $('detail').close()); $('reload').addEventListener('click', load);
 $('closeHomologacao').addEventListener('click', () => $('homologacao').close());
-navigate(state.view); $('homologacao').showModal(); load();
+pcaFillYears(); navigate(state.view); $('homologacao').showModal(); load();
