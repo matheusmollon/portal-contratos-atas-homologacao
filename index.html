@@ -5,7 +5,7 @@
     <base target="_top">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./styles.css?v=20261009-2">
 </head>
 
 <body data-tela="inicio">
@@ -150,7 +150,7 @@
         </div>
         <nav aria-label="Navegação principal"><button data-view="inicio">Início</button><button
                 data-view="contratos">Contratos</button><button data-view="atas">Atas e itens</button><button
-                data-view="atas-externas">Atas externas</button><button
+                data-view="pca">Plano Anual</button><button data-view="atas-externas">Atas externas</button><button
                 data-view="oportunidades">Oportunidades</button><button data-view="orientacoes">Orientações</button>
         </nav>
     </header>
@@ -158,7 +158,7 @@
         <div id="notice" role="status" class="notice">Carregando dados publicados…</div>
         <section id="home">
             <div class="hero">
-                <div><span class="eyebrow">TRANSPARÊNCIA · UTFPR</span>
+                <div><span class="eyebrow">TRANSPARÊNCIA · UTFPR </span>
                     <h1>Campi: Cornélio Procópio, Londrina e Apucarana</h1>
                     <p>Contratos, atas e itens do Núcleo Regional Norte,<br class="desktop"> reunidos em um só lugar.
                     </p>
@@ -280,13 +280,34 @@
                     id="opportunityPageInfo"></span><button id="opportunityNext" class="secondary" disabled>Próxima
                     →</button></div>
         </section>
+        <section id="annualPlan" hidden>
+            <div class="heading">
+                <div><span class="eyebrow">CONSULTA DIRETA AO PNCP</span>
+                    <h1>Plano Anual de Contratações</h1>
+                    <p>Consulte o PCA da UTFPR - Núcleo Regional Norte (UASG 153176) por exercício.</p>
+                </div>
+            </div>
+            <form id="pcaForm" class="filters pca-filters">
+                <div class="field"><label for="pcaYear">Ano do PCA</label><select id="pcaYear" required
+                        aria-describedby="pcaYearHelp"></select></div><button type="submit" id="pcaSearch"
+                    class="primary">Consultar plano</button>
+            </form>
+            <p id="pcaYearHelp" class="external-scope"><strong>Como consultar:</strong> selecione um ano entre 2022 e o
+                próximo exercício. O portal localizará automaticamente o PCA da UASG 153176 e carregará seu resumo,
+                categorias e itens.</p>
+            <p class="pncp-notice external-pncp-notice">A consulta é realizada diretamente no PNCP e não é armazenada na
+                planilha nem no arquivo de dados do portal. Valores e datas devem ser confirmados na fonte oficial.</p>
+            <div id="pcaStatus" class="result-count" role="status" aria-live="polite">Selecione o ano e clique em
+                “Consultar plano”.</div>
+            <div id="pcaContent"></div>
+        </section>
         <section id="guidance" hidden><span class="eyebrow">SOBRE A CONSULTA</span>
             <h1>Orientações</h1>
             <div class="info-box">
                 <h2>Desenvolvimento e suporte</h2>
                 <p>Este portal foi desenvolvido pela DIOMAI do Campus Cornélio Procópio da UTFPR para facilitar a gestão
                     e a consulta de contratos, atas de registro de preços e seus itens.</p>
-                <p>Problemas e falhas de funcionamento podem ser reportados à DIOMAI-CP. </p>
+                <p>Problemas e falhas de funcionamento podem ser reportados à DIOMAI-CP.</p>
                 <h2>O que você encontra aqui</h2>
                 <p>Contratos vinculados às UGs 153176 (Núcleo Regional Norte), 150148 (Campus Londrina) e 150149 (Campus
                     Apucarana), inclusive quando o instrumento não está vinculado à UG regional. As atas permanecem
@@ -325,7 +346,7 @@
             Confira as informações nos documentos oficiais antes de utilizá-las em uma demanda.</p>
         <button id="closeHomologacao" type="button" class="primary" autofocus>Entendi, acessar o portal</button>
     </dialog>
-    <script src="./app.js" defer></script>
+    <script src="./app.js?v=20261009-2" defer></script>
 </body>
 
 </html>
