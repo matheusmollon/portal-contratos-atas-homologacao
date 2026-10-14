@@ -5,7 +5,7 @@
     <base target="_top">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="./styles.css?v=20261013-4">
+    <link rel="stylesheet" href="./styles.css?v=20261014-6">
 </head>
 
 <body data-tela="inicio">
@@ -144,8 +144,9 @@
             </svg>
             <div class="brand-title">
                 <div class="portal-title"><strong>Portal de Contratos e Atas</strong><span
-                        class="homologacao-badge">Homologação</span></div><span>UTFPR · Campus Cornélio Procópio</span><span
-                    class="scope-label">Regional Norte e campi · UGs 153176, 150148 e 150149</span>
+                        class="homologacao-badge">Homologação</span></div><span>Campi: Cornélio Procópio, Londrina e
+                    Apucarana</span><span class="scope-label">Regional Norte e campi · UGs 153176, 150148 e
+                    150149</span>
             </div>
         </div>
         <nav aria-label="Navegação principal"><button data-view="inicio">Início</button><button
@@ -156,33 +157,71 @@
     </header>
     <main id="principal" tabindex="-1">
         <div id="notice" role="status" class="notice">Carregando dados publicados…</div>
-        <section id="home">
-            <div class="hero">
-                <div><span class="eyebrow">TRANSPARÊNCIA · UTFPR </span>
-                    <h1>Campi: Cornélio Procópio, Londrina e Apucarana</h1>
-                    <p>Contratos, atas e itens do Núcleo Regional Norte,<br class="desktop"> reunidos em um só lugar.
-                    </p>
+        <section id="home" class="dashboard-home">
+            <div class="dashboard-heading">
+                <div><span class="eyebrow">TRANSPARÊNCIA · UTFPR</span>
+                    <h1>Visão geral</h1>
+                    <p>Acompanhe vigências e prazos das contratações.</p>
                 </div>
-                <div class="stats">
-                    <article><span class="stat-icon" aria-hidden="true">▤</span><strong
-                            id="nContratos">—</strong><span>Contratos vigentes</span></article>
-                    <article><span class="stat-icon" aria-hidden="true">▥</span><strong id="nAtas">—</strong><span>Atas
-                            vigentes</span></article>
-                    <article><span class="stat-icon" aria-hidden="true">▦</span><strong
-                            id="nItens">—</strong><span>Itens em atas vigentes</span></article>
-                </div>
+                <div class="field"><label for="dashboardUnit">Unidade responsável</label><select id="dashboardUnit">
+                        <option value="">Todas as unidades</option>
+                        <option value="153176">Regional Norte · 153176</option>
+                        <option value="150148">Londrina · 150148</option>
+                        <option value="150149">Apucarana · 150149</option>
+                    </select></div>
             </div>
-            <form id="globalSearch" class="global-search"><label class="sr-only" for="globalQ">Pesquisar contratos, atas
-                    e itens</label><input id="globalQ" type="search"
-                    placeholder="Pesquise por objeto, item ou fornecedor" maxlength="160"><button class="primary"
-                    type="submit">Pesquisar</button></form>
-            <div class="shortcuts"><button data-view="contratos"><span class="shortcut-icon"
-                        aria-hidden="true">▤</span><span><strong>Consultar contratos</strong><small>Objetos,
-                            fornecedores, valores e vigências.</small></span><b aria-hidden="true">→</b></button><button
-                    data-view="atas"><span class="shortcut-icon" aria-hidden="true">☷</span><span><strong>Explorar atas
-                            e itens</strong><small>Encontre materiais e serviços registrados.</small></span><b
-                        aria-hidden="true">→</b></button></div>
+            <div class="dashboard-totals">
+                <button class="dashboard-total tone-blue" id="dashboardContracts"><span class="dashboard-icon"
+                        aria-hidden="true">▤</span><span><span>Contratos vigentes</span><strong
+                            id="nContratos">—</strong></span><span aria-hidden="true">›</span></button>
+                <button class="dashboard-total tone-green" id="dashboardAtas"><span class="dashboard-icon"
+                        aria-hidden="true">☷</span><span><span>Atas vigentes</span><strong
+                            id="nAtas">—</strong></span><span aria-hidden="true">›</span></button>
+                <button class="dashboard-total tone-purple" id="dashboardItems"><span class="dashboard-icon"
+                        aria-hidden="true">▦</span><span><span>Itens em atas vigentes</span><strong
+                            id="nItens">—</strong></span><span aria-hidden="true">›</span></button>
+                <button class="dashboard-total tone-cream" id="dashboardOpportunities"><span class="dashboard-icon"
+                        aria-hidden="true">◷</span><span><span>Oportunidades abertas</span><strong
+                            id="dashboardOpenCount">—</strong></span><span aria-hidden="true">›</span></button>
+            </div>
+            <div class="dashboard-grid">
+                <section class="dashboard-panel">
+                    <div class="dashboard-panel-title">
+                        <h2>Vencimento dos contratos</h2><button id="dashboardAllContracts" class="dashboard-link">Ver
+                            lista filtrada →</button>
+                    </div>
+                    <div id="dashboardContractExpiry" class="dashboard-expiry"></div>
+                    <p id="dashboardContractOther" class="dashboard-footnote">Aguardando a base publicada.</p>
+                </section>
+                <section class="dashboard-panel">
+                    <div class="dashboard-panel-title">
+                        <h2>Vencimento das atas</h2><button id="dashboardAllAtas" class="dashboard-link">Ver lista
+                            filtrada →</button>
+                    </div>
+                    <div id="dashboardAtaExpiry" class="dashboard-expiry"></div>
+                    <p id="dashboardAtaOther" class="dashboard-footnote">Aguardando a base publicada.</p>
+                </section>
+                <section class="dashboard-panel">
+                    <div class="dashboard-panel-title">
+                        <h2>Oportunidades abertas</h2><button id="dashboardRefresh" class="dashboard-link">Atualizar
+                            ↻</button>
+                    </div>
+                    <div id="dashboardModalities" class="dashboard-modalities"></div>
+                    <p id="dashboardFuture" class="dashboard-footnote">Prazo de propostas em andamento.</p>
+                    <p id="dashboardOpportunityStatus" class="hint" role="status">Aguardando consulta ao PNCP.</p>
+                </section>
+                <section class="dashboard-panel">
+                    <div class="dashboard-panel-title">
+                        <h2>Prazos de propostas mais próximos</h2><button id="dashboardAllOpportunities"
+                            class="dashboard-link">Ver todas →</button>
+                    </div>
+                    <div id="dashboardDeadlines" class="dashboard-deadlines"></div>
+                    <p class="dashboard-footnote">Encerramento das propostas, não a abertura da sessão. Confirme o prazo
+                        no edital.</p>
+                </section>
+            </div>
         </section>
+
         <section id="catalog" hidden>
             <div class="heading">
                 <div><span class="eyebrow">CONSULTA PÚBLICA</span>
@@ -406,8 +445,9 @@
             Confira as informações nos documentos oficiais antes de utilizá-las em uma demanda.</p>
         <button id="closeHomologacao" type="button" class="primary" autofocus>Entendi, acessar o portal</button>
     </dialog>
-    <script src="./app.js?v=20261010-3" defer></script>
-    <script src="./consultas-pncp.js?v=20261013-4" defer></script>
+    <script src="./app.js?v=20261014-5" defer></script>
+    <script src="./consultas-pncp.js?v=20261014-5" defer></script>
+    <script src="./painel-inicial.js?v=20261014-5" defer></script>
 </body>
 
 </html>
