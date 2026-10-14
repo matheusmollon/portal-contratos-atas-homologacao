@@ -1540,6 +1540,71 @@ dialog {
 }
 
 /* Plano Anual de Contratações - consulta direta ao PNCP. */
+.cp2-badges {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end
+}
+
+.expiry {
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: bold
+}
+
+.expiry-30 {
+    color: #8b2020;
+    background: #ffe4e4
+}
+
+.expiry-60 {
+    color: #814000;
+    background: #ffead1
+}
+
+.expiry-90 {
+    color: #695000;
+    background: #fff4bf
+}
+
+.cp2-documents,
+.cp2-items {
+    margin-top: 24px;
+    border-top: 1px solid var(--line);
+    padding-top: 18px
+}
+
+.cp2-documents h3,
+.cp2-items h3 {
+    margin-bottom: 12px
+}
+
+.cp2-document {
+    padding: 12px;
+    border: 1px solid var(--line);
+    margin-top: 8px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap
+}
+
+.cp2-items .card {
+    margin: 12px 0
+}
+
+.cp2-results {
+    margin-top: 14px
+}
+
+.cp2-results dl {
+    padding: 14px;
+    border: 1px solid var(--line);
+    margin-bottom: 10px
+}
+
 /* Valores fora das barras: categorias pequenas não cortam o texto. */
 .pca-chart .pca-bar-row {
     grid-template-columns: minmax(150px, 240px) minmax(0, 1fr) 160px
@@ -1962,5 +2027,132 @@ dialog {
     .pca-pager button {
         padding: 9px 8px;
         white-space: normal
+    }
+}
+
+.external-filters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: end
+}
+
+.external-filters .grow,
+.external-actions {
+    grid-column: 1/-1
+}
+
+.external-filters .field {
+    min-width: 0
+}
+
+.external-filters input,
+.external-filters select {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%
+}
+
+.external-actions {
+    display: flex;
+    gap: 12px
+}
+
+.external-actions button {
+    min-height: 46px
+}
+
+@media(max-width:700px) {
+    .external-filters {
+        grid-template-columns: minmax(0, 1fr)
+    }
+
+    .external-filters .field {
+        grid-column: 1/-1
+    }
+
+    .external-actions {
+        flex-direction: column
+    }
+
+    .external-actions button {
+        width: 100%
+    }
+}
+
+/* Atividade nas consultas, com respeito à preferência de movimento reduzido. */
+.query-loading {
+    position: relative;
+    display: block;
+    padding: 18px 18px 25px 52px !important;
+    margin: 12px 0 !important;
+    border: 1px solid #e8d898;
+    border-radius: 10px;
+    background: #fffbed;
+    color: #4a442d !important;
+    font-size: 14px;
+    line-height: 1.55;
+    min-height: 68px;
+    overflow: hidden;
+    white-space: normal;
+    overflow-wrap: anywhere
+}
+
+.query-loading::before {
+    content: "";
+    position: absolute;
+    left: 18px;
+    top: 20px;
+    width: 18px;
+    height: 18px;
+    border: 3px solid #e8dfbf;
+    border-top-color: #9b7600;
+    border-radius: 50%;
+    animation: query-spin .9s linear infinite
+}
+
+.query-loading::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 35%;
+    height: 4px;
+    background: #ffcb05;
+    animation: query-sweep 1.7s ease-in-out infinite
+}
+
+@keyframes query-spin {
+    to {
+        transform: rotate(360deg)
+    }
+}
+
+@keyframes query-sweep {
+    0% {
+        transform: translateX(-100%)
+    }
+
+    100% {
+        transform: translateX(390%)
+    }
+}
+
+@media(prefers-reduced-motion:reduce) {
+
+    .query-loading::before,
+    .query-loading::after {
+        animation: none
+    }
+
+    .query-loading::after {
+        width: 100%;
+        opacity: .55
+    }
+}
+
+@media(max-width:700px) {
+    .query-loading {
+        font-size: 13px;
+        padding-right: 12px !important
     }
 }
