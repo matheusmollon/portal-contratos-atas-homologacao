@@ -2156,3 +2156,560 @@ dialog {
         padding-right: 12px !important
     }
 }
+
+.query-error {
+    display: block;
+    padding: 16px !important;
+    margin: 14px 0 !important;
+    border: 2px solid #b42318;
+    border-left: 6px solid #b42318;
+    border-radius: 8px;
+    background: #fff0ee;
+    color: #8d1b13 !important;
+    font-size: 15px !important;
+    font-weight: 700;
+    line-height: 1.6;
+    overflow-wrap: anywhere
+}
+
+.query-error:focus {
+    outline: 3px solid #b42318;
+    outline-offset: 3px
+}
+
+[aria-invalid="true"] {
+    border: 2px solid #b42318 !important;
+    background: #fff7f6
+}
+
+/* Painel inicial: identidade institucional com tonalidades discretas. */
+.dashboard-home {
+    padding-top: 26px
+}
+
+.dashboard-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 22px;
+    margin-bottom: 25px
+}
+
+.dashboard-heading h1 {
+    font-size: 34px;
+    margin: 4px 0 8px
+}
+
+.dashboard-heading .field {
+    min-width: 250px
+}
+
+.dashboard-heading select {
+    width: 100%;
+    min-height: 44px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 9px 12px
+}
+
+.dashboard-totals {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 20px
+}
+
+.dashboard-total {
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    text-align: left;
+    border: 1px solid #d5dfe9;
+    border-radius: 6px;
+    padding: 22px 18px;
+    min-width: 0;
+    min-height: 120px
+}
+
+.dashboard-total>span:nth-child(2) {
+    flex: 1;
+    min-width: 0
+}
+
+.dashboard-total strong {
+    display: block;
+    font-size: 36px;
+    line-height: 1.15;
+    margin-top: 8px;
+    color: #20232e;
+    font-variant-numeric: tabular-nums
+}
+
+.dashboard-total>span:last-child {
+    font-size: 25px
+}
+
+.dashboard-icon {
+    font-size: 33px;
+    line-height: 1
+}
+
+.tone-blue {
+    background: #f0f6fc;
+    color: #244c77
+}
+
+.tone-green {
+    background: #f1f7f3;
+    color: #285b48
+}
+
+.tone-purple {
+    background: #f5f3fa;
+    color: #514277
+}
+
+.tone-cream {
+    background: #fffaf0;
+    color: #73561e
+}
+
+.dashboard-total span span {
+    font-size: 14px;
+    color: #242c3c
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px
+}
+
+.dashboard-panel {
+    border: 1px solid #d9e0e8;
+    border-radius: 6px;
+    padding: 20px;
+    min-width: 0;
+    background: white
+}
+
+.dashboard-panel-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px
+}
+
+.dashboard-panel-title h2 {
+    font-size: 19px;
+    font-weight: 700
+}
+
+.dashboard-link {
+    color: #245584;
+    font-size: 13px;
+    padding: 6px 0;
+    white-space: nowrap;
+    text-decoration: underline;
+    text-underline-offset: 3px
+}
+
+.dashboard-expiry,
+.dashboard-modalities {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px
+}
+
+.dashboard-expiry-tile {
+    position: relative;
+    border: 1px solid #dce1e7;
+    border-radius: 5px;
+    background: #fff;
+    padding: 18px 10px 18px 17px;
+    text-align: left;
+    min-height: 102px;
+    min-width: 0
+}
+
+.dashboard-expiry-tile:before {
+    content: "";
+    position: absolute;
+    top: 5px;
+    bottom: 5px;
+    left: 0;
+    width: 4px;
+    background: currentColor;
+    border-radius: 3px
+}
+
+.dashboard-expiry-tile strong {
+    font-size: 30px;
+    display: block;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums
+}
+
+.dashboard-expiry-tile span {
+    font-size: 13px;
+    display: block;
+    margin-top: 5px
+}
+
+.deadline-30 {
+    color: #b42318
+}
+
+.deadline-60 {
+    color: #b45309
+}
+
+.deadline-90 {
+    color: #856000
+}
+
+.dashboard-footnote {
+    border-top: 1px solid #e1e5eb;
+    padding-top: 12px;
+    margin-top: 16px;
+    font-size: 12px;
+    color: #566173
+}
+
+.dashboard-modality {
+    border: 1px solid #d9e0e8;
+    border-radius: 5px;
+    padding: 18px 12px;
+    min-width: 0;
+    text-align: left
+}
+
+.dashboard-modality strong {
+    display: block;
+    font-size: 29px;
+    margin-top: 5px;
+    font-variant-numeric: tabular-nums
+}
+
+.dashboard-modality span {
+    font-size: 13px
+}
+
+.dashboard-deadline-row {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 12px 0;
+    text-align: left;
+    border-bottom: 1px solid #e5e9ee
+}
+
+.dashboard-deadline-row>span:first-child {
+    flex: 1;
+    min-width: 0
+}
+
+.dashboard-deadline-row strong {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden
+}
+
+.dashboard-deadline-row small {
+    display: block;
+    margin-top: 5px;
+    color: #596678;
+    font-size: 12px
+}
+
+.dashboard-deadline-chip {
+    font-size: 12px;
+    padding: 5px 8px;
+    border: 1px solid currentColor;
+    border-radius: 4px;
+    white-space: nowrap
+}
+
+.dashboard-total:hover,
+.dashboard-expiry-tile:hover,
+.dashboard-modality:hover {
+    box-shadow: 0 0 0 2px #d2dae5
+}
+
+.dashboard-deadline-row:hover {
+    background: #f6f8fb
+}
+
+.dashboard-home .global-search {
+    margin: 26px 0 10px
+}
+
+.dashboard-home #dashboardCoverage {
+    margin-top: 16px
+}
+
+@media(max-width:1000px) {
+    .dashboard-totals {
+        grid-template-columns: repeat(2, minmax(0, 1fr))
+    }
+
+    .dashboard-panel-title {
+        align-items: flex-start;
+        flex-wrap: wrap
+    }
+
+    .dashboard-heading h1 {
+        font-size: 30px
+    }
+}
+
+@media(max-width:700px) {
+    .dashboard-heading {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 14px
+    }
+
+    .dashboard-heading .field {
+        min-width: 0
+    }
+
+    .dashboard-grid {
+        grid-template-columns: minmax(0, 1fr)
+    }
+
+    .dashboard-total {
+        padding: 16px 12px;
+        gap: 9px;
+        min-height: 110px
+    }
+
+    .dashboard-icon {
+        font-size: 26px
+    }
+
+    .dashboard-total strong {
+        font-size: 30px
+    }
+
+    .dashboard-total span span {
+        font-size: 12px
+    }
+
+    .dashboard-panel {
+        padding: 15px
+    }
+
+    .dashboard-panel-title h2 {
+        font-size: 17px
+    }
+
+    .dashboard-expiry,
+    .dashboard-modalities {
+        gap: 7px
+    }
+
+    .dashboard-expiry-tile {
+        padding: 15px 7px 15px 11px
+    }
+
+    .dashboard-expiry-tile strong {
+        font-size: 26px
+    }
+
+    .dashboard-expiry-tile span {
+        font-size: 11px
+    }
+
+    .dashboard-deadline-chip {
+        white-space: normal;
+        text-align: center;
+        max-width: 88px
+    }
+
+    .dashboard-home {
+        padding-top: 16px
+    }
+}
+
+/* Navegação estável: trocar a aba ativa não muda a linha do menu. */
+html {
+    scrollbar-gutter: stable
+}
+
+.header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    justify-content: stretch;
+    gap: 18px
+}
+
+.header nav {
+    width: 100%;
+    min-width: 0;
+    align-items: center;
+    justify-content: flex-start
+}
+
+.header nav button,
+.header nav button.active {
+    font-weight: 600;
+    white-space: nowrap;
+    min-height: 44px
+}
+
+.header .brand {
+    min-width: 0
+}
+
+@media(max-width:700px) {
+    .header {
+        gap: 12px
+    }
+
+    .header nav {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-bottom: 5px
+    }
+
+    .header nav button {
+        flex: 0 0 auto
+    }
+
+    .header .brand-title {
+        min-width: 0
+    }
+}
+
+/* Desktop/notebook: identidade à esquerda e navegação à direita na mesma linha. */
+@media(min-width:1000px) {
+    .header {
+        display: flex;
+        flex-wrap: nowrap;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 18px 2.5%
+    }
+
+    .header .brand {
+        flex: 0 1 460px;
+        gap: 14px;
+        min-width: 0
+    }
+
+    .header .utfpr-logo {
+        width: 145px;
+        flex-shrink: 0
+    }
+
+    .header .brand-title {
+        min-width: 0;
+        padding-left: 14px
+    }
+
+    .header .brand-title strong {
+        font-size: 17px;
+        line-height: 1.3
+    }
+
+    .header .brand-title span {
+        font-size: 11px;
+        line-height: 1.5
+    }
+
+    .header .portal-title {
+        flex-wrap: wrap;
+        gap: 6px
+    }
+
+    .header nav {
+        flex: 0 0 auto;
+        width: auto;
+        flex-wrap: nowrap;
+        gap: 2px;
+        justify-content: flex-end
+    }
+
+    .header nav button,
+    .header nav button.active {
+        font-size: 12px;
+        padding: 9px 8px;
+        font-weight: 600;
+        white-space: nowrap
+    }
+}
+
+@media(min-width:1000px) and (max-width:1399px) {
+    .header {
+        padding: 15px 2%;
+        gap: 12px
+    }
+
+    .header .brand {
+        flex-basis: 370px;
+        gap: 10px
+    }
+
+    .header .utfpr-logo {
+        width: 112px
+    }
+
+    .header .brand-title {
+        padding-left: 10px
+    }
+
+    .header .brand-title strong {
+        font-size: 15px
+    }
+
+    .header .brand-title span {
+        font-size: 10px
+    }
+
+    .header .homologacao-badge {
+        font-size: 10px;
+        padding: 2px 5px
+    }
+
+    .header nav {
+        gap: 0
+    }
+
+    .header nav button,
+    .header nav button.active {
+        font-size: 11px;
+        padding: 9px 6px
+    }
+}
+
+.deadline-neutral {
+    color: #566173
+}
+
+/* Pequeno aumento de legibilidade do menu superior direito. */
+@media(min-width:1000px) {
+
+    .header nav button,
+    .header nav button.active {
+        font-size: 13px;
+        padding: 10px 9px
+    }
+}
+
+@media(min-width:1000px) and (max-width:1399px) {
+
+    .header nav button,
+    .header nav button.active {
+        font-size: 12px;
+        padding: 10px 7px
+    }
+}
