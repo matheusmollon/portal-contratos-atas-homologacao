@@ -125,21 +125,32 @@ function renderAtasExternas(data) {
   $('externalPageInfo').textContent = 'Página ' + externalState.page + ' de ' + pages;
   $('externalPrev').disabled = externalState.busy || externalState.page <= 1; $('externalNext').disabled = externalState.busy || externalState.page >= pages;
 }
+function externalParams(page) {
+  const params = new URLSearchParams({ q: $('externalQuery').value.trim(), tipos_documento: 'ata', pagina: String(page), tam_pagina: String(externalState.size), esferas: 'F', permite_adesao: 'true', status: 'vigente', ordenacao: '-data' });
+  for (const [id, param] of [['externalType', 'tipos'], ['externalModality', 'modalidades'], ['externalUf', 'ufs'], ['externalPower', 'poderes']]) if ($(id).value) params.set(param, $(id).value);
+  return params;
+}
+function externalScope() {
+  const labels = ['esfera federal', 'atas vigentes', 'permite adesão'];
+  for (const id of ['externalType', 'externalModality', 'externalUf', 'externalPower']) if ($(id).value) labels.push($(id).selectedOptions[0].textContent);
+  $('externalScope').textContent = 'Filtros aplicados: ' + labels.join(' · ') + ' · ' + externalState.size + ' resultados por página.';
+}
 function consultarAtasExternas(page) {
   if (externalState.busy) return;
-  const query = $('externalQuery').value.trim(), key = query + '|' + page;
+  const params = externalParams(page), query = params.get('q'), key = params.toString();
+  externalScope();
   externalState.page = page; externalState.query = query;
   if (externalState.cache.has(key)) { renderAtasExternas(externalState.cache.get(key)); return; }
   externalState.busy = true; $('externalStatus').textContent = 'Consultando o PNCP…'; $('externalCards').replaceChildren(); $('externalPrev').disabled = true; $('externalNext').disabled = true; $('externalSearch').disabled = true;
   if (externalState.controller) externalState.controller.abort(); externalState.controller = new AbortController();
-  const params = new URLSearchParams({ q: query, tipos_documento: 'ata', pagina: String(page), tam_pagina: String(externalState.size), esferas: 'F', permite_adesao: 'true', status: 'vigente', ordenacao: '-data' });
+  for (const control of $('externalFilters').elements) control.disabled = true;
   const timeout = setTimeout(() => externalState.controller.abort(), 30000);
   fetch('https://pncp.gov.br/api/search/?' + params.toString(), { headers: { Accept: 'application/json' }, signal: externalState.controller.signal }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(data => {
     if (!data || !Array.isArray(data.items) || !Number.isFinite(Number(data.total))) throw new Error('Resposta inválida');
     externalState.cache.set(key, data); renderAtasExternas(data);
   }).catch(err => {
-    $('externalCards').replaceChildren(); const box = el('div', undefined, 'external-error'), message = err.name === 'AbortError' ? 'A consulta ao PNCP excedeu o tempo de espera.' : 'O PNCP não respondeu à consulta neste momento.'; box.append(el('p', message)); const retry = el('button', 'Tentar novamente', 'secondary'); retry.addEventListener('click', () => consultarAtasExternas(externalState.page)); box.append(retry); $('externalCards').append(box); $('externalStatus').textContent = 'Consulta externa temporariamente indisponível.'; $('externalPageInfo').textContent = '';
-  }).finally(() => { clearTimeout(timeout); externalState.busy = false; $('externalSearch').disabled = false; $('externalPrev').disabled = externalState.page <= 1; $('externalNext').disabled = !externalState.total || externalState.page >= Math.ceil(externalState.total / externalState.size); });
+    externalState.total = 0; $('externalCards').replaceChildren(); const box = el('div', undefined, 'external-error'), message = err.name === 'AbortError' ? 'A consulta ao PNCP excedeu o tempo de espera.' : 'O PNCP não respondeu à consulta neste momento.'; box.append(el('p', message)); const retry = el('button', 'Tentar novamente', 'secondary'); retry.addEventListener('click', () => consultarAtasExternas(externalState.page)); box.append(retry); $('externalCards').append(box); $('externalStatus').textContent = 'Consulta externa temporariamente indisponível.'; $('externalPageInfo').textContent = '';
+  }).finally(() => { clearTimeout(timeout); externalState.busy = false; for (const control of $('externalFilters').elements) control.disabled = false; $('externalPrev').disabled = externalState.page <= 1; $('externalNext').disabled = !externalState.total || externalState.page >= Math.ceil(externalState.total / externalState.size); });
 }
 function opportunityUrl(item) {
   const raw = String(item.linkSistemaOrigem || '').trim();
@@ -327,8 +338,9 @@ function detail(row) {
 document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => navigate(b.dataset.view)));
 $('globalSearch').addEventListener('submit', e => { e.preventDefault(); const q = $('globalQ').value; navigate('todos'); $('query').value = q; render(); });
 $('filters').addEventListener('submit', e => { e.preventDefault(); state.page = 1; render(); });
+$('externalFilters').addEventListener('input', () => { externalState.page = 1; $('externalPrev').disabled = true; $('externalNext').disabled = true; });
 $('externalFilters').addEventListener('submit', e => { e.preventDefault(); externalState.page = 1; consultarAtasExternas(1); });
-$('externalClear').addEventListener('click', () => { $('externalQuery').value = ''; externalState.page = 1; consultarAtasExternas(1); });
+$('externalClear').addEventListener('click', () => { $('externalFilters').reset(); externalState.page = 1; consultarAtasExternas(1); });
 $('externalPrev').addEventListener('click', () => consultarAtasExternas(Math.max(1, externalState.page - 1)));
 $('externalNext').addEventListener('click', () => consultarAtasExternas(externalState.page + 1));
 $('opportunityFilters').addEventListener('submit', e => { e.preventDefault(); opportunityState.page = 1; renderOpportunities(); });
