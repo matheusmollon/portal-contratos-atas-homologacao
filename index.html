@@ -5,7 +5,7 @@
     <base target="_top">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="./styles.css?v=20261009-2">
+    <link rel="stylesheet" href="./styles.css?v=20261013-4">
 </head>
 
 <body data-tela="inicio">
@@ -228,12 +228,72 @@
             <form id="externalFilters" class="filters external-filters">
                 <div class="field grow"><label for="externalQuery">Palavra-chave</label><input id="externalQuery"
                         type="search" maxlength="160"
-                        placeholder="Ex.: mobiliário, ar-condicionado ou material de laboratório"></div><button
-                    type="submit" id="externalSearch" class="primary">Pesquisar no PNCP</button><button type="button"
-                    id="externalClear" class="secondary">Limpar</button>
+                        placeholder="Ex.: mobiliário, ar-condicionado ou material de laboratório"></div>
+                <div class="field"><label for="externalType">Tipo de instrumento convocatório</label><select
+                        id="externalType">
+                        <option value="">Todos</option>
+                        <option value="1">Edital</option>
+                        <option value="2">Aviso de contratação direta</option>
+                        <option value="3">Ato que autoriza a contratação direta</option>
+                    </select></div>
+                <div class="field"><label for="externalModality">Modalidade da contratação</label><select
+                        id="externalModality">
+                        <option value="">Todas</option>
+                        <option value="1">Leilão — eletrônico</option>
+                        <option value="2">Diálogo competitivo</option>
+                        <option value="3">Concurso</option>
+                        <option value="4">Concorrência — eletrônica</option>
+                        <option value="5">Concorrência — presencial</option>
+                        <option value="6">Pregão — eletrônico</option>
+                        <option value="7">Pregão — presencial</option>
+                        <option value="8">Dispensa</option>
+                        <option value="9">Inexigibilidade</option>
+                        <option value="10">Manifestação de interesse</option>
+                        <option value="11">Pré-qualificação</option>
+                        <option value="12">Credenciamento</option>
+                        <option value="13">Leilão — presencial</option>
+                    </select></div>
+                <div class="field"><label for="externalUf">UF da unidade responsável</label><select id="externalUf">
+                        <option value="">Todas</option>
+                        <option value="AC">AC</option>
+                        <option value="AL">AL</option>
+                        <option value="AP">AP</option>
+                        <option value="AM">AM</option>
+                        <option value="BA">BA</option>
+                        <option value="CE">CE</option>
+                        <option value="DF">DF</option>
+                        <option value="ES">ES</option>
+                        <option value="GO">GO</option>
+                        <option value="MA">MA</option>
+                        <option value="MT">MT</option>
+                        <option value="MS">MS</option>
+                        <option value="MG">MG</option>
+                        <option value="PA">PA</option>
+                        <option value="PB">PB</option>
+                        <option value="PR">PR</option>
+                        <option value="PE">PE</option>
+                        <option value="PI">PI</option>
+                        <option value="RJ">RJ</option>
+                        <option value="RN">RN</option>
+                        <option value="RS">RS</option>
+                        <option value="RO">RO</option>
+                        <option value="RR">RR</option>
+                        <option value="SC">SC</option>
+                        <option value="SP">SP</option>
+                        <option value="SE">SE</option>
+                        <option value="TO">TO</option>
+                    </select></div>
+                <div class="field"><label for="externalPower">Poder</label><select id="externalPower">
+                        <option value="">Todos</option>
+                        <option value="E">Executivo</option>
+                        <option value="L">Legislativo</option>
+                        <option value="J">Judiciário</option>
+                    </select></div>
+                <div class="external-actions"><button type="submit" id="externalSearch" class="primary">Pesquisar no
+                        PNCP</button><button type="button" id="externalClear" class="secondary">Limpar</button></div>
             </form>
-            <p class="external-scope"><strong>Filtros aplicados:</strong> esfera federal · atas vigentes · permite
-                adesão · 25 resultados por página.</p>
+            <p id="externalScope" class="external-scope"><strong>Filtros aplicados:</strong> esfera federal · atas
+                vigentes · permite adesão · 25 resultados por página.</p>
             <p class="pncp-notice external-pncp-notice">Esta consulta depende diretamente do PNCP, que pode apresentar
                 lentidão ou indisponibilidade. Uma falha na pesquisa externa não afeta os contratos e as atas da UTFPR
                 publicados neste portal.</p>
@@ -346,7 +406,8 @@
             Confira as informações nos documentos oficiais antes de utilizá-las em uma demanda.</p>
         <button id="closeHomologacao" type="button" class="primary" autofocus>Entendi, acessar o portal</button>
     </dialog>
-    <script src="./app.js?v=20261009-2" defer></script>
+    <script src="./app.js?v=20261010-3" defer></script>
+    <script src="./consultas-pncp.js?v=20261013-4" defer></script>
 </body>
 
 </html>
