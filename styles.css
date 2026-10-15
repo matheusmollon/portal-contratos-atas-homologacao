@@ -2713,3 +2713,47 @@ html {
         padding: 10px 7px
     }
 }
+
+.item-official-links {
+    margin: 0 !important;
+    padding: 15px 19px 8px;
+    border-top: 1px solid var(--line)
+}
+
+.item-official-links a {
+    white-space: normal;
+    overflow-wrap: anywhere
+}
+
+.item .item-official-note {
+    margin: 0 !important;
+    padding: 0 19px 17px;
+    font-size: 12px;
+    line-height: 1.5
+}
+
+.commercial .item-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr))
+}
+
+@media(max-width:700px) {
+    .commercial .item-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr))
+    }
+}
+
+@media(max-width:520px) {
+    .commercial .item-metrics {
+        grid-template-columns: 1fr
+    }
+
+    .item-official-links {
+        padding-left: 15px;
+        padding-right: 15px
+    }
+
+    .item .item-official-note {
+        padding-left: 15px;
+        padding-right: 15px
+    }
+}
