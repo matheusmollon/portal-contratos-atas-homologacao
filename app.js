@@ -20,7 +20,7 @@ const dateTime = v => { const d = new Date(v); return v && Number.isFinite(d.get
 const yesNo = v => v === true ? 'Sim' : v === false ? 'Não' : 'Não informado';
 function el(tag, text, cls) { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; }
 function note(text, type = '') { $('notice').textContent = text; $('notice').className = 'notice ' + type; }
-function link(parent, url, label) { if (!/^https:\/\/(?:pncp\.gov\.br|(?:[a-z0-9-]+\.)*comprasnet\.gov\.br|(?:[a-z0-9-]+\.)*compras\.gov\.br)(?:\/|$)/i.test(url || '')) return; const a = el('a', label + ' ↗'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; parent.append(a); }
+function link(parent, url, label) { if (!/^https:\/\/(?:pncp\.gov\.br|(?:[a-z0-9-]+\.)*comprasnet\.gov\.br|(?:[a-z0-9-]+\.)*compras\.gov\.br|contratos\.sistema\.gov\.br)(?:\/|$)/i.test(url || '')) return; const a = el('a', label + ' ↗'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; parent.append(a); }
 function badge(row) { return el('span', row.situacao, 'badge' + (row.situacao === 'Vigente' ? ' live' : '')); }
 function field(dl, label, value) { const wrap = el('div'); wrap.append(el('dt', label), el('dd', value === null || value === undefined || value === '' ? 'Não informado' : value)); dl.append(wrap); }
 const informed = v => v !== null && v !== undefined && v !== '';
@@ -79,8 +79,6 @@ function load() {
     const dt = new Date(d.atualizadoEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
     $('updated').textContent = 'Última atualização: ' + dt; $('coverage').textContent = 'Histórico de atas coletado desde ' + date(d.coberturaAtas);
     note(d.desatualizado ? 'A atualização tem mais de 48 horas. Exibindo os últimos dados disponíveis.' : 'Dados oficiais · Contratos das UGs 153176, 150148 e 150149 · Atas gerenciadas pela UASG 153176', d.desatualizado ? 'warning' : '');
-    if (d.atasComPendenciaItens) note((d.desatualizado ? 'A atualização tem mais de 48 horas. ' : '') + d.atasComPendenciaItens + ' ata(s) com itens indisponíveis ou incompletos na fonte oficial. A pesquisa por itens e sua contagem não incluem essas atas.', 'warning');
-    if (d.pendenciasEnriquecimento) note(d.pendenciasEnriquecimento + ' consulta(s) de saldo ou adesão ficaram indisponíveis na fonte oficial. Os campos afetados aparecem como não informados e serão consultados novamente na próxima atualização.', 'warning');
     years(); render(); if (typeof renderDashboard === 'function') renderDashboard();
   };
   const failure = () => { state.busy = false; $('reload').disabled = false; note('Não foi possível carregar os dados. Tente “Recarregar dados”.', 'error'); };
@@ -299,14 +297,14 @@ function detail(row) {
     body.append(el('p', 'Atualização do portal: ' + new Date(state.data.atualizadoEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }), 'hint'));
   }
 
-  const links = el('div', undefined, 'links'); link(links, row.link, row.tipo === 'ata' ? 'Abrir ata no PNCP' : 'Documento oficial'); link(links, row.linkCompra, 'Abrir contratação no PNCP'); link(links, row.tipo === 'contrato' ? linkTransparenciaContrato(row.id) : row.linkDados, 'Consultar dados na fonte'); body.append(links);
+  const links = el('div', undefined, 'links'); link(links, row.link, row.tipo === 'ata' ? 'Abrir ata no PNCP' : 'Documento oficial'); link(links, row.linkCompra, 'Abrir contratação no PNCP'); link(links, row.tipo === 'contrato' ? linkTransparenciaContrato(row.id) : row.linkDados, 'Consultar dados na fonte'); if (row.tipo === 'ata') link(links, row.linkContratos || 'https://contratos.sistema.gov.br/transparencia/arp', 'Abrir ata no Contratos.gov.br' + (row.linkContratos ? '' : ' — pesquisar')); body.append(links);
   const pncpLinks = Array.from(links.querySelectorAll('a')).filter(a => /^https:\/\/pncp\.gov\.br(?:\/|$)/i.test(a.href));
   if (pncpLinks.length) { const aviso = el('p', 'Os links do PNCP abrem um serviço externo, que pode apresentar instabilidade ao consultar atas, contratações ou arquivos. Se ocorrer um erro no PNCP, tente novamente mais tarde. A falha na abertura externa não significa, por si só, falha deste portal.', 'pncp-notice'); aviso.id = 'pncpNotice'; pncpLinks.forEach(a => a.setAttribute('aria-describedby', aviso.id)); body.append(aviso); }
 
   if (row.tipo === 'contrato') body.append(el('p', 'A consulta pública do SEI exibe as informações disponibilizadas pela instituição. O link abre a pesquisa; não preenche o número automaticamente.', 'hint'));
   if (row.tipo === 'ata') {
     body.append(el('h3', 'Itens da ata'));
-    if (row.avisoItens) body.append(el('p', row.avisoItens + ' Os dados serão conferidos novamente na próxima atualização. Consulte também o documento oficial da ata.', 'notice warning'));
+    if (row.avisoItens) { const available = new Set((state.items.get(row.id) || []).map(i => i.numero)).size, expected = Number(row.itensEsperados ?? row.quantidadeItens), count = 'Itens disponíveis no portal: ' + available + (Number.isFinite(expected) && expected > 0 ? ' · Total informado na ata: ' + expected : '') + '. '; body.append(el('p', count + row.avisoItens + ' Exibimos os itens disponíveis; pode haver divergência com o total da fonte. Consulte a ata no PNCP para conferir a relação completa.', 'notice warning')); }
     const search = el('input'); search.type = 'search'; search.placeholder = 'Filtrar itens desta ata'; search.className = 'detail-search'; search.setAttribute('aria-label', 'Filtrar itens desta ata'); body.append(search);
     body.append(el('p', 'Quantidade registrada não equivale a saldo disponível. Preços devem ser interpretados conforme a descrição do item.', 'hint'));
     const list = el('div', undefined, 'item-list'); body.append(list);
@@ -316,36 +314,11 @@ function detail(row) {
         const box = el('article', undefined, 'item'), head = el('div', undefined, 'item-head'), title = el('div'); title.append(el('span', 'ITEM ' + item.numero, 'item-number'), el('h4', 'Descrição do item')); const tags = el('div', undefined, 'item-tags'); tags.append(el('span', item.tipo || 'Tipo não informado'), el('span', 'Código ' + (item.codigo || 'não informado'))); head.append(title, tags); box.append(head);
         const description = el('p', undefined, 'item-description'); description.append(mark(item.descricao || 'Descrição não informada', search.value)); box.append(description);
         const supplier = el('div', undefined, 'item-supplier'), supplierText = el('div'); supplierText.append(el('span', 'FORNECEDOR'), el('strong', item.fornecedor || 'Não informado')); supplier.append(supplierText, el('span', 'CNPJ/CPF: ' + (item.documento || 'Não informado'), 'supplier-document')); box.append(supplier);
-        const commercial = itemSection('Valores registrados', 'commercial'); commercial.grid.append(itemMetric('Preço unitário', money(item.preco), 'highlight'), itemMetric('Quantidade do fornecedor', qty(item.quantidade)), itemMetric('Valor total', money(item.valor), 'highlight'));
+        const commercial = itemSection('Valores registrados', 'commercial'); commercial.grid.append(itemMetric('Preço unitário', money(item.preco), 'highlight'), itemMetric('Quantidade registrada', qty(item.quantidade), '', 'Quantidade do fornecedor registrada neste item; não representa saldo disponível.'), itemMetric('Valor total', money(item.valor), 'highlight'));
         if (informed(item.desconto) && Number(item.desconto) !== 0) commercial.grid.append(itemMetric('Maior desconto', qty(item.desconto) + '%')); box.append(commercial.section);
-        const balance = itemSection('Empenhos e saldo', 'balance'), balanceNotice = empenhoAviso(item);
-        if (balanceNotice) balance.section.insertBefore(el('p', balanceNotice, 'balance-state ' + String(item.statusConsultaEmpenho || '').toLowerCase()), balance.grid);
-        balance.grid.append(
-          itemMetric('Quantidade registrada', informed(item.quantidadeRegistrada) ? qty(item.quantidadeRegistrada) : 'Não informada pela fonte oficial', '', 'Quantidade originalmente registrada para este item.'),
-          itemMetric('Quantidade já empenhada', empenhoValue(item, 'quantidadeEmpenhada', qty), '', 'Quantidade que já possui empenho registrado na fonte oficial.'),
-          itemMetric('Saldo disponível para empenho', empenhoValue(item, 'saldoEmpenho', qty), 'balance-value', 'Quantidade que a fonte oficial indica como ainda disponível para empenho.'),
-          itemMetric('Última atualização do saldo', empenhoValue(item, 'dataHoraAtualizacao', dateTime), 'wide', 'Data e hora da última atualização publicada pela fonte oficial.')
-        ); box.append(balance.section);
-        const hasAdhesion = [item.saldoAdesoes, item.qtdLimiteAdesao, item.qtdLimiteInformadoCompra, item.aceitaAdesao, item.quantidadeAprovadaAdesao].some(informed), adhesion = itemSection('Possibilidade de adesão por outros órgãos', 'adhesion');
-        adhesion.section.insertBefore(el('p', 'Adesão é a utilização da ata por um órgão que não participou originalmente da licitação. Ela depende de autorização do órgão gerenciador, aceite do fornecedor e análise de vantagem.', 'adhesion-intro'), adhesion.grid);
-        if (hasAdhesion) adhesion.grid.append(
-          itemMetric('Saldo disponível para novas adesões', qty(item.saldoAdesoes), 'balance-value', 'Quantidade que o sistema ainda indica como disponível para pedidos de outros órgãos.'),
-          itemMetric('Limite máximo de adesões', qty(item.qtdLimiteAdesao), '', 'Teto de quantidade controlado pelo sistema para adesões deste item.'),
-          itemMetric('Limite previsto na compra', qty(item.qtdLimiteInformadoCompra), '', 'Quantidade para adesões registrada originalmente no procedimento de compra.'),
-          itemMetric('Admite pedidos de adesão', yesNo(item.aceitaAdesao), item.aceitaAdesao === true ? 'positive' : '', '“Sim” permite solicitar, mas não representa autorização automática.'),
-          itemMetric('Quantidade já aprovada para adesões', qty(item.quantidadeAprovadaAdesao), 'wide', 'Soma das adesões aprovadas publicadas pela fonte oficial. Zero significa que nenhuma aprovação foi retornada.')
-        );
-        else adhesion.grid.append(el('p', 'A fonte oficial ainda não disponibilizou informações de adesão para este item.', 'item-empty')); box.append(adhesion.section);
-        if (Array.isArray(item.unidadesAdesao) && item.unidadesAdesao.length) {
-          const more = el('details', undefined, 'adhesion-details'), sum = el('summary', 'Detalhamento por unidade (' + item.unidadesAdesao.length + ')'), units = el('div', undefined, 'adhesion-list'); more.append(sum);
-          item.unidadesAdesao.forEach(u => { const unit = el('div', undefined, 'adhesion-unit'); unit.append(el('strong', (u.nomeUnidade || u.codigoUnidade || 'Unidade não informada') + (u.tipoUnidade ? ' · ' + u.tipoUnidade : '')), el('span', 'Fornecedor: ' + (u.fornecedor || 'Não informado')), el('span', 'Saldo para novas adesões: ' + qty(u.saldoAdesoes)), el('span', 'Limite máximo: ' + qty(u.qtdLimiteAdesao)), el('span', 'Limite previsto na compra: ' + qty(u.qtdLimiteInformadoCompra)), el('span', 'Admite pedidos: ' + yesNo(u.aceitaAdesao))); units.append(unit); }); more.append(units); box.append(more);
-        }
-        if (Array.isArray(item.adesoesAprovadas) && item.adesoesAprovadas.length) {
-          const approved = el('details', undefined, 'approved-details'), summary = el('summary', 'Adesões já aprovadas (' + item.adesoesAprovadas.length + ')'), list = el('div', undefined, 'approved-list'); approved.append(summary);
-          item.adesoesAprovadas.forEach(a => { const row = el('div', undefined, 'approved-row'); row.append(el('strong', a.unidadeNaoParticipante || 'Órgão não participante não informado'), el('span', 'Quantidade aprovada: ' + qty(a.quantidadeAprovadaAdesao)), el('span', 'Data da aprovação: ' + dateTime(a.dataAprovacaoAnalise))); list.append(row); }); approved.append(list); box.append(approved);
-        }
-        else if (item.statusConsultaAdesoes === 'INDISPONIVEL') box.append(el('p', 'A consulta de adesões aprovadas estava temporariamente indisponível. Ela será repetida na próxima atualização.', 'no-approved'));
-        else box.append(el('p', 'Nenhuma adesão aprovada foi localizada na fonte oficial para este item. Isso não impede a apresentação de novos pedidos quando a ata admitir adesões e houver saldo.', 'no-approved'));
+        const official = el('div', undefined, 'links item-official-links');
+        link(official, item.linkItemContratos || row.linkContratos || 'https://contratos.sistema.gov.br/transparencia/arp', item.linkItemContratos ? 'Consultar empenhos, saldos e adesões' : row.linkContratos ? 'Consultar empenhos, saldos e adesões na ata' : 'Localizar ata no portal oficial'); box.append(official);
+        box.append(el('p', item.linkItemContratos ? 'Consulte os empenhos, saldos e adesões deste item no portal oficial Contratos.gov.br.' : row.linkContratos ? 'O link abre a ata no portal oficial. Selecione o item para consultar empenhos, saldos e adesões.' : 'O vínculo direto ainda não foi confirmado. Localize a ata na pesquisa oficial para consultar empenhos, saldos e adesões.', 'hint item-official-note'));
         list.append(box);
       }
       if (!items.length) list.append(el('p', 'Nenhum item encontrado para este filtro.'));
