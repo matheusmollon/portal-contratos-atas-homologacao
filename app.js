@@ -21,6 +21,15 @@ const yesNo = v => v === true ? 'Sim' : v === false ? 'Não' : 'Não informado';
 function el(tag, text, cls) { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; }
 function note(text, type = '') { $('notice').textContent = text; $('notice').className = 'notice ' + type; }
 function link(parent, url, label) { if (!/^https:\/\/(?:pncp\.gov\.br|(?:[a-z0-9-]+\.)*comprasnet\.gov\.br|(?:[a-z0-9-]+\.)*compras\.gov\.br|contratos\.sistema\.gov\.br)(?:\/|$)/i.test(url || '')) return; const a = el('a', label + ' ↗'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; parent.append(a); }
+function portalRecordTitle(row) {
+  const label = row.tipo === 'ata' ? 'Ata' : 'Contrato', number = String(row.numero || '').replace(/^(?:contrato|ata)\s*(?:n[º°o.]*)?\s*/i, '').trim();
+  return label + ' nº ' + (number || 'não informado');
+}
+function portalProcurementTitle(item) {
+  const modality = item.modalidadeNome || 'Contratação', number = String(item.numeroCompra || '').trim(), year = String(item.anoCompra ?? '').trim();
+  const full = number && /^\d{4}$/.test(year) && !/[\/]\s*\d{4}\s*$/.test(number) ? number + '/' + year : number;
+  return modality + (full ? ' nº ' + full : ' — número não informado');
+}
 function badge(row) { return el('span', row.situacao, 'badge' + (row.situacao === 'Vigente' ? ' live' : '')); }
 function field(dl, label, value) { const wrap = el('div'); wrap.append(el('dt', label), el('dd', value === null || value === undefined || value === '' ? 'Não informado' : value)); dl.append(wrap); }
 const informed = v => v !== null && v !== undefined && v !== '';
@@ -191,7 +200,7 @@ function renderOpportunities() {
   opportunityState.page = Math.min(opportunityState.page, pages); $('opportunityCards').replaceChildren();
   for (const item of items.slice((opportunityState.page - 1) * opportunityState.size, opportunityState.page * opportunityState.size)) {
     const card = el('article', undefined, 'card opportunity-card'), top = el('div', undefined, 'card-top'), status = opportunitySituation(item), url = opportunityUrl(item);
-    top.append(el('h2', (item.modalidadeNome || 'Oportunidade') + ' ' + (item.numeroCompra || '')), el('span', status, 'badge ' + (status === 'Recebendo propostas' ? 'live' : 'soon'))); card.append(top, el('p', item.objetoCompra || 'Objeto não informado pelo PNCP.', 'object'));
+    top.append(el('h2', portalProcurementTitle(item)), el('span', status, 'badge ' + (status === 'Recebendo propostas' ? 'live' : 'soon'))); card.append(top, el('p', item.objetoCompra || 'Objeto não informado pelo PNCP.', 'object'));
     const dl = el('dl'); field(dl, 'UNIDADE', ((item.unidadeOrgao?.nomeUnidade || 'Não informada') + (opportunityUnit(item) ? ' · ' + opportunityUnit(item) : ''))); campoProcesso(dl, item.processo); field(dl, 'VALOR ESTIMADO', money(item.valorTotalEstimado)); field(dl, 'INÍCIO DO RECEBIMENTO DAS PROPOSTAS', dateTime(item.dataAberturaProposta)); field(dl, 'FIM DO RECEBIMENTO DAS PROPOSTAS', dateTime(item.dataEncerramentoProposta)); field(dl, 'DATA PREVISTA PARA ABERTURA DA SESSÃO PÚBLICA', opportunitySessionDate(item)); field(dl, 'MODO DE DISPUTA', item.modoDisputaNome); card.append(dl, el('p', 'A abertura da sessão é uma previsão calculada para o minuto seguinte ao encerramento das propostas no Compras.gov.br. Confirme o horário no edital e no sistema oficial.', 'session-hint'));
     if (url) { const a = el('a', 'Consultar ou participar ↗', 'primary opportunity-open'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; card.append(a); } $('opportunityCards').append(card);
   }
@@ -313,7 +322,7 @@ function render() {
   $('resultCount').textContent = found.length + ' resultado(s) · ' + (status || 'Todas as situações') + (state.catalogUnit ? ' · UASG ' + state.catalogUnit : ''); $('cards').replaceChildren();
   for (const row of found.slice((state.page - 1) * state.size, state.page * state.size)) {
     const card = el('article', undefined, 'card catalog-card'), top = el('div', undefined, 'card-top'); card.dataset.recordId = row.id;
-    top.append(el('h2', row.numero), badge(row)); card.append(top, el('p', row.objeto || 'Objeto não informado pela fonte.', 'object'));
+    top.append(el('h2', portalRecordTitle(row)), badge(row)); card.append(top, el('p', row.objeto || 'Objeto não informado pela fonte.', 'object'));
     const meta = el('p', [campusLabel(row), row.fornecedor].filter(Boolean).join(' · '), 'catalog-meta'); card.append(meta);
     if (typeof uiExpiry === 'function') card.append(uiExpiry(row)); else card.append(el('p', 'Vigência: ' + date(row.inicio) + ' a ' + date(row.fim), 'hint'));
 
@@ -325,7 +334,7 @@ function render() {
   $('pageInfo').textContent = 'Página ' + state.page + ' de ' + pages; $('prev').disabled = state.page === 1; $('next').disabled = state.page === pages;
 }
 function detail(row) {
-  $('detailType').textContent = row.tipo === 'ata' ? 'ATA DE REGISTRO DE PREÇOS' : 'CONTRATO'; $('detailTitle').textContent = row.numero;
+  $('detailType').textContent = row.tipo === 'ata' ? 'ATA DE REGISTRO DE PREÇOS' : 'CONTRATO'; $('detailTitle').textContent = portalRecordTitle(row);
   const body = $('detailBody'); body.replaceChildren(badge(row), el('p', row.objeto, 'detail-object'));
   const dl = el('dl', undefined, 'detail-grid'); field(dl, 'Vigência', date(row.inicio) + ' a ' + date(row.fim)); field(dl, 'Valor', money(row.valor));
   field(dl, 'Câmpus atendido', campusLabel(row));
@@ -445,8 +454,8 @@ function iniciarUsabilidadePortal() {
   }
   function uiCloseMenu() { document.querySelector('.header').classList.remove('nav-open'); $('menuToggle').setAttribute('aria-expanded', 'false'); document.querySelector('.nav-more').open = false; }
   function uiInstallHeader() {
-    const header = document.querySelector('.header'), nav = document.querySelector('nav'), more = el('details', undefined, 'nav-more'), summary = el('summary', 'Mais'), list = el('div', undefined, 'nav-more-options'); more.append(summary, list);
-    ['pca', 'atas-externas', 'orientacoes'].forEach(view => { const b = nav.querySelector('[data-view="' + view + '"]'); if (b) list.append(b); }); nav.append(more); nav.id = 'mainNavigation';
+    const header = document.querySelector('.header'), nav = document.querySelector('nav'), more = el('details', undefined, 'nav-more'), summary = el('summary', 'Mais'), list = el('div', undefined, 'nav-more-options'); const chevron = document.createElementNS('http://www.w3.org/2000/svg', 'svg'), path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); chevron.setAttribute('viewBox', '0 0 24 24'); chevron.setAttribute('aria-hidden', 'true'); chevron.setAttribute('focusable', 'false'); chevron.classList.add('nav-more-chevron'); path.setAttribute('d', 'm6 9 6 6 6-6'); chevron.append(path); summary.append(chevron); more.append(summary, list);
+    ['historico', 'atas-externas', 'orientacoes'].forEach(view => { const b = nav.querySelector('[data-view="' + view + '"]'); if (b) list.append(b); }); nav.append(more); nav.id = 'mainNavigation';
     const menu = el('button', undefined, 'menu-toggle'); menu.id = 'menuToggle'; menu.type = 'button'; menu.setAttribute('aria-label', 'Abrir menu de navegação'); menu.setAttribute('aria-controls', nav.id); menu.setAttribute('aria-expanded', 'false'); menu.append(el('span', '☰')); header.insertBefore(menu, nav); menu.onclick = () => { const open = header.classList.toggle('nav-open'); menu.setAttribute('aria-expanded', String(open)); };
     nav.addEventListener('click', e => { if (e.target.closest('[data-view]')) uiCloseMenu(); }); document.addEventListener('click', e => { if (!header.contains(e.target)) uiCloseMenu(); }); document.addEventListener('keydown', e => { if (e.key === 'Escape' && header.classList.contains('nav-open')) { uiCloseMenu(); menu.focus(); } });
   }
@@ -471,7 +480,7 @@ function iniciarUsabilidadePortal() {
       for (const id of ['query', 'campus', 'year', 'status', 'expiryFilter', 'contractOrder']) if ($(id)) $(id).value = saved ? saved.values[id] : (id === 'status' ? 'Vigente' : id === 'contractOrder' ? 'expiryAsc' : '');
       state.catalogUnit = saved?.unit || ''; state.page = saved?.page || 1; years(); render();
     }
-    document.querySelector('.nav-more').classList.toggle('contains-active', ['pca', 'atas-externas', 'orientacoes'].includes(view)); uiCloseMenu();
+    document.querySelector('.nav-more').classList.toggle('contains-active', ['historico', 'atas-externas', 'orientacoes'].includes(view)); uiCloseMenu();
     const section = view === 'historico' ? $('history') : view === 'contratos' || view === 'atas' || view === 'todos' ? $('catalog') : view === 'atas-externas' ? $('externalAtas') : view === 'oportunidades' ? $('opportunities') : view === 'pca' ? $('annualPlan') : view === 'orientacoes' ? $('guidance') : $('home'); if (section && !section.hidden) uiFocusResults(section.querySelector('h1') || section);
   };
   document.addEventListener('click', e => { const advanced = document.querySelector('.advanced-filters'); if (advanced?.open && !advanced.contains(e.target)) advanced.open = false; });
