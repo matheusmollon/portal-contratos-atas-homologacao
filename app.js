@@ -6,7 +6,7 @@ const initialView = ['inicio', 'contratos', 'atas', 'pca', 'atas-externas', 'opo
 const state = { data: null, view: initialView, page: 1, size: 8, items: new Map(), busy: false };
 const externalState = { page: 1, size: 25, total: 0, busy: false, query: '', cache: new Map(), controller: null, loaded: false };
 const opportunityState = { page: 1, size: 12, busy: false, loaded: false, items: [], controller: null, failures: 0 };
-const pcaState = { busy: false, controller: null, year: null, sequencial: null, categories: [], items: new Map(), pages: new Map(), filters: new Map() };
+const pcaState = { busy: false, controller: null, year: null, sequencial: null, categories: [], items: new Map(), pages: new Map(), filters: new Map(), query: '' };
 const OPPORTUNITY_UASGS = ['153176', '150148', '150149'];
 const OPPORTUNITY_MODALITIES = [8, 6, 4];
 const UTFPR_CNPJ = '75101873000190';
@@ -226,8 +226,26 @@ function pcaFetchJson(url, signal) { return fetch(url, { headers: { Accept: 'app
 function pcaDate(value, withTime = false) { const d = new Date(value); if (!value || !Number.isFinite(d.getTime())) return 'Não informada'; return withTime ? d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }); }
 function pcaOfficialUrl(year, seq) { return 'https://pncp.gov.br/app/pca/' + UTFPR_CNPJ + '/' + year + '/' + seq; }
 function pcaSummaryCard(label, value) { const box = el('article', undefined, 'pca-summary-card'); box.append(el('span', label), el('strong', value)); return box; }
+function pcaFilteredItems(categoryId) {
+  const q = norm(pcaState.query || '').trim();
+  return (pcaState.items.get(String(categoryId)) || []).filter(item => !q || norm([item.numeroItem, item.classificacaoSuperiorCodigo, item.classificacaoSuperiorNome, item.grupoContratacaoCodigo, item.grupoContratacaoNome, item.descricaoItem, item.descricao].filter(v => v !== null && v !== undefined).join(' ')).includes(q));
+}
+function pcaApplySearch() {
+  const active = !!norm(pcaState.query || '').trim(); let total = 0, categories = 0;
+  for (const cat of pcaState.categories) {
+    const id = String(cat.categoriaItemId), section = $('pcaCategory-' + id), count = pcaFilteredItems(id).length;
+    total += count; if (count) categories++;
+    if (active && !section.dataset.searching) { section.dataset.preSearchOpen = String(section.open); section.dataset.searching = 'true'; }
+    section.hidden = active && !count;
+    if (active) section.open = count > 0; else if (section.dataset.searching) { section.open = section.dataset.preSearchOpen === 'true'; delete section.dataset.searching; delete section.dataset.preSearchOpen; }
+    $('pcaCategoryCount-' + id).textContent = active ? count + ' resultado(s) de ' + (pcaState.items.get(id) || []).length + ' item(ns) carregado(s)' : Number(cat.quantidadeItens || 0).toLocaleString('pt-BR') + ' item(ns) · ' + money(cat.valorTotal);
+    pcaState.pages.set(id, 1); pcaRenderItemRows(id);
+  }
+  $('pcaSearchResults').textContent = active ? (total ? total + ' item(ns) encontrado(s) em ' + categories + ' categoria(s).' : 'Nenhum item encontrado. Tente outra palavra ou limpe a busca.') : 'Pesquise nos ' + total + ' itens carregados, em todas as categorias.';
+  $('pcaClearSearch').disabled = !pcaState.query;
+}
 function pcaRenderItemRows(categoryId) {
-  const id = String(categoryId), all = pcaState.items.get(id) || [], query = norm(pcaState.filters.get(id) || ''), filtered = all.filter(x => !query || norm([x.classificacaoSuperiorCodigo, x.classificacaoSuperiorNome, x.grupoContratacaoCodigo, x.grupoContratacaoNome].join(' ')).includes(query));
+  const id = String(categoryId), filtered = pcaFilteredItems(id);
   const size = 10, pages = Math.max(1, Math.ceil(filtered.length / size)), page = Math.min(pcaState.pages.get(id) || 1, pages); pcaState.pages.set(id, page);
   const body = $('pcaRows-' + id), info = $('pcaPageInfo-' + id), prev = $('pcaPrev-' + id), next = $('pcaNext-' + id); body.replaceChildren();
   filtered.slice((page - 1) * size, page * size).forEach(item => {
@@ -249,16 +267,21 @@ function pcaRender(summary) {
   const details = el('dl', undefined, 'pca-details'); field(details, 'ID PCA PNCP', summary.numeroControlePNCP); field(details, 'LOCAL', [summary.municipio, summary.uf].filter(Boolean).join('/') || 'Não informado'); field(details, 'FONTE', summary.usuario || 'Não informada'); top.append(details); root.append(top);
   const chart = el('section', undefined, 'pca-chart'); chart.append(el('h2', 'Valor estimado e quantidade de itens por categoria')); const max = Math.max(1, ...pcaState.categories.map(c => Number(c.valorTotal) || 0));
   pcaState.categories.forEach(cat => { const row = el('div', undefined, 'pca-bar-row'), label = el('div', undefined, 'pca-bar-label'); label.append(el('strong', cat.categoriaItemNome), el('span', Number(cat.quantidadeItens || 0).toLocaleString('pt-BR') + ' item(ns)')); const track = el('div', undefined, 'pca-bar-track'), bar = el('div', undefined, 'pca-bar'); bar.style.width = Math.max(0, Math.min(100, (Number(cat.valorTotal || 0) / max) * 100)) + '%'; track.setAttribute('aria-hidden', 'true'); track.append(bar); const value = el('strong', money(cat.valorTotal), 'pca-bar-value'); row.append(label, track, value); chart.append(row); }); root.append(chart, el('h2', 'Detalhamento por categoria', 'pca-detail-title'));
+  const searchForm = el('form', undefined, 'pca-global-search'), searchField = el('div', undefined, 'field grow'), searchLabel = el('label', 'Buscar em todas as categorias'), searchInput = el('input'), clearSearch = el('button', 'Limpar busca', 'secondary'), searchResults = el('p', undefined, 'hint');
+  searchLabel.htmlFor = 'pcaGlobalSearch'; searchInput.id = 'pcaGlobalSearch'; searchInput.type = 'search'; searchInput.maxLength = 160; searchInput.placeholder = 'Classe, grupo, futura contratação ou número do item'; searchInput.value = pcaState.query || ''; searchInput.setAttribute('aria-describedby', 'pcaSearchResults'); clearSearch.id = 'pcaClearSearch'; clearSearch.type = 'button'; searchResults.id = 'pcaSearchResults'; searchResults.setAttribute('role', 'status'); searchResults.setAttribute('aria-live', 'polite'); searchField.append(searchLabel, searchInput); searchForm.append(searchField, clearSearch); root.append(searchForm, searchResults);
+  searchForm.addEventListener('submit', event => event.preventDefault()); searchInput.addEventListener('input', () => { pcaState.query = searchInput.value; pcaApplySearch(); }); clearSearch.addEventListener('click', () => { pcaState.query = ''; searchInput.value = ''; pcaApplySearch(); searchInput.focus(); });
+
   pcaState.categories.forEach((cat, index) => {
-    const id = String(cat.categoriaItemId), section = el('details', undefined, 'pca-category'); if (index === 0) section.open = true; const summaryEl = el('summary'), summaryText = el('span'); summaryText.append(el('strong', cat.categoriaItemNome), el('small', Number(cat.quantidadeItens || 0).toLocaleString('pt-BR') + ' item(ns) · ' + money(cat.valorTotal))); summaryEl.append(summaryText, el('span', '⌄', 'pca-chevron')); section.append(summaryEl);
-    const inner = el('div', undefined, 'pca-category-body'), search = el('input'); search.type = 'search'; search.maxLength = 160; search.placeholder = 'Filtrar por classe, grupo ou futura contratação'; search.className = 'pca-category-search'; search.setAttribute('aria-label', 'Filtrar itens da categoria ' + cat.categoriaItemNome); search.addEventListener('input', () => { pcaState.filters.set(id, search.value); pcaState.pages.set(id, 1); pcaRenderItemRows(id); }); inner.append(search);
+    const id = String(cat.categoriaItemId), section = el('details', undefined, 'pca-category'); section.id = 'pcaCategory-' + id; if (index === 0) section.open = true; const summaryEl = el('summary'), summaryText = el('span'); summaryText.append(el('strong', cat.categoriaItemNome), el('small', Number(cat.quantidadeItens || 0).toLocaleString('pt-BR') + ' item(ns) · ' + money(cat.valorTotal))); summaryText.querySelector('small').id = 'pcaCategoryCount-' + id; summaryEl.append(summaryText, el('span', '⌄', 'pca-chevron')); section.append(summaryEl);
+    const inner = el('div', undefined, 'pca-category-body');
     const wrap = el('div', undefined, 'pca-table-wrap'), table = el('table', undefined, 'pca-table'), thead = el('thead'), hr = el('tr');['Item no PCA', 'Classe/Grupo', 'Futura contratação', 'Data desejada', 'Valor estimado'].forEach(x => hr.append(el('th', x))); thead.append(hr); const tbody = el('tbody'); tbody.id = 'pcaRows-' + id; table.append(thead, tbody); wrap.append(table); inner.append(wrap);
     const pager = el('div', undefined, 'pca-pager'), prev = el('button', '← Anterior', 'secondary'), info = el('span'), next = el('button', 'Próxima →', 'secondary'); prev.type = next.type = 'button'; prev.id = 'pcaPrev-' + id; next.id = 'pcaNext-' + id; info.id = 'pcaPageInfo-' + id; prev.addEventListener('click', () => { pcaState.pages.set(id, (pcaState.pages.get(id) || 1) - 1); pcaRenderItemRows(id); }); next.addEventListener('click', () => { pcaState.pages.set(id, (pcaState.pages.get(id) || 1) + 1); pcaRenderItemRows(id); }); pager.append(prev, info, next); inner.append(pager); section.append(inner); root.append(section); pcaRenderItemRows(id);
   });
+  pcaApplySearch();
 }
 async function consultarPca() {
   if (pcaState.busy) return; const year = Number($('pcaYear').value); if (year < 2022 || year > new Date().getFullYear() + 1) return;
-  const previous = { year: pcaState.year, sequencial: pcaState.sequencial, categories: pcaState.categories, items: pcaState.items, pages: pcaState.pages, filters: pcaState.filters, summary: pcaState.summary };
+  const previous = { year: pcaState.year, sequencial: pcaState.sequencial, categories: pcaState.categories, items: pcaState.items, pages: pcaState.pages, filters: pcaState.filters, query: pcaState.query, summary: pcaState.summary };
   if (typeof uiClearFeedback === 'function') uiClearFeedback('pcaStatus'); pcaState.busy = true; pcaState.year = year; $('pcaSearch').disabled = true; $('pcaYear').disabled = true; $('pcaStatus').textContent = 'Localizando o PCA da Regional Norte…'; $('pcaContent').setAttribute('aria-busy', 'true'); $('pcaContent').inert = true; if (pcaState.controller) pcaState.controller.abort(); pcaState.controller = new AbortController(); const signal = pcaState.controller.signal, base = 'https://pncp.gov.br/api/pncp/v1/orgaos/' + UTFPR_CNPJ + '/pca/' + year, timer = setTimeout(() => pcaState.controller.abort(), 30000);
   try {
     const units = await pcaFetchJson(base + '/consolidado/unidades?pagina=1&tamanhoPagina=50', signal), regional = Array.isArray(units) ? units.find(x => String(x.codigoUnidade) === '153176') : null; if (!regional) throw new Error('PCA_NOT_FOUND');
@@ -266,7 +289,7 @@ async function consultarPca() {
     $('pcaStatus').textContent = 'Carregando resumo e categorias…'; const [summary, categories] = await Promise.all([pcaFetchJson(plan + '/consolidado', signal), pcaFetchJson(plan + '/valorescategoriaitem', signal)]); if (!summary || !Array.isArray(categories)) throw new Error('INVALID_RESPONSE');
     const collected = new Map(); $('pcaStatus').textContent = 'Carregando itens das categorias…';
     await Promise.all(categories.map(async cat => { const count = Number(cat.quantidadeItens) || 0, pages = Math.max(1, Math.ceil(count / 100)), urls = Array.from({ length: pages }, (_, i) => plan + '/itens?categoria=' + encodeURIComponent(cat.categoriaItemId) + '&pagina=' + (i + 1) + '&tamanhoPagina=100'), parts = await Promise.all(urls.map(url => pcaFetchJson(url, signal))), items = parts.flatMap(x => Array.isArray(x) ? x : (Array.isArray(x?.data) ? x.data : [])); collected.set(String(cat.categoriaItemId), items); }));
-    pcaState.categories = categories; pcaState.items = collected; pcaState.pages = new Map(); pcaState.filters = new Map(); pcaState.summary = summary; pcaRender(summary); $('pcaStatus').textContent = 'PCA ' + year + ' carregado: ' + Number(summary.quantidade || 0).toLocaleString('pt-BR') + ' item(ns) em ' + categories.length + ' categoria(s).';
+    pcaState.categories = categories; pcaState.items = collected; pcaState.pages = new Map(); pcaState.filters = new Map(); pcaState.query = ''; pcaState.summary = summary; pcaRender(summary); $('pcaStatus').textContent = 'PCA ' + year + ' carregado: ' + Number(summary.quantidade || 0).toLocaleString('pt-BR') + ' item(ns) em ' + categories.length + ' categoria(s).';
   } catch (err) {
     pcaState.controller.abort(); Object.assign(pcaState, previous); const msg = err.message === 'PCA_NOT_FOUND' ? 'Não foi localizado PCA da UASG 153176 para ' + year + '.' : err.name === 'AbortError' ? 'A consulta foi interrompida.' : 'O PNCP não respondeu corretamente à consulta do PCA. Tente novamente em alguns instantes.'; $('pcaStatus').textContent = msg; const box = el('div', undefined, 'external-error'); box.append(el('p', msg)); const retry = el('button', 'Tentar novamente', 'secondary'); retry.addEventListener('click', consultarPca); box.append(retry); if (typeof uiFeedback === 'function') uiFeedback('pcaStatus', msg + (previous.summary ? ' O PCA ' + previous.year + ' anteriormente carregado foi mantido.' : ''), consultarPca); else $('pcaContent').append(box);
   } finally { clearTimeout(timer); pcaState.busy = false; $('pcaSearch').disabled = false; $('pcaYear').disabled = false; $('pcaContent').removeAttribute('aria-busy'); $('pcaContent').inert = false; }
@@ -365,3 +388,103 @@ $('prev').addEventListener('click', () => { state.page--; render(); }); $('next'
 $('closeDetail').addEventListener('click', () => $('detail').close()); $('reload').addEventListener('click', load);
 $('closeHomologacao').addEventListener('click', () => $('homologacao').close());
 pcaFillYears(); navigate(state.view); $('homologacao').showModal(); load();
+
+
+// Usabilidade integrada. Executa após os módulos de consultas e painel.
+function iniciarUsabilidadePortal() {
+  'use strict';
+  // Apresentação e navegação do checkpoint 2. Sem cadastro, credenciais ou escrita de dados.
+  const uiViews = new Map(), uiActions = new WeakMap(); let uiLastOpener = null;
+  function uiFocusResults(id) { const target = typeof id === 'string' ? $(id) : id; if (!target || target.closest('[hidden]')) return; target.tabIndex = -1; target.focus({ preventScroll: true }); target.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); }
+  function uiClearFeedback(id) { $(id + 'Feedback')?.remove(); }
+  function uiFeedback(id, message, retry) {
+    uiClearFeedback(id); const node = el('div', undefined, 'ui-feedback'); node.id = id + 'Feedback'; node.setAttribute('role', 'alert'); node.append(el('p', message)); if (retry) { const b = el('button', 'Tentar novamente', 'secondary'); b.onclick = retry; node.append(b); } $(id).after(node);
+  }
+  function uiRange(page, size, total) { if (!total) return 'Nenhum resultado'; return 'Exibindo ' + ((page - 1) * size + 1) + '–' + Math.min(page * size, total) + ' de ' + total; }
+  function uiExpiry(row) {
+    const days = cp2Days(row), wrap = el('p', undefined, 'catalog-expiry');
+    if (days !== null && days >= 0) { const tone = days <= 30 ? '30' : days <= 60 ? '60' : days <= 90 ? '90' : 'neutral', text = days === 0 ? 'Vence hoje' : days === 1 ? 'Vence amanhã' : 'Vence em ' + days + ' dias'; wrap.classList.add('expiry-tone-' + tone); const icon = el('span', undefined, 'calendar-icon'); icon.setAttribute('aria-hidden', 'true'); icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>'; wrap.append(icon, el('span', text), el('time', date(row.fim))); wrap.lastChild.dateTime = row.fim; }
+    else wrap.append(el('span', 'Vigência: ' + date(row.inicio) + ' a ' + date(row.fim)));
+    return wrap;
+  }
+  // A situação não repete o vencimento no cabeçalho; o prazo aparece junto à data.
+  badge = cp2OriginalBadge;
+  function uiBindAction(button, action) { if (!button) return; uiActions.set(button, action); if (button.dataset.uiAction) return; button.dataset.uiAction = 'true'; button.addEventListener('click', event => { event.preventDefault(); event.stopImmediatePropagation(); if (!button.disabled) uiActions.get(button)?.(); }, true); }
+  function uiPager(infoId, prevId, nextId, page, pages, total, size, onPage, busy = false) {
+    const info = $(infoId), prev = $(prevId), next = $(nextId); if (!info || !prev || !next) return;
+    const parent = info.parentElement; parent.setAttribute('role', 'navigation'); parent.setAttribute('aria-label', 'Paginação dos resultados'); parent.setAttribute('aria-busy', String(busy));
+    let numbers = parent.querySelector('.pager-numbers'); if (!numbers) { numbers = el('div', undefined, 'pager-numbers'); parent.insertBefore(numbers, info); } numbers.replaceChildren();
+    const set = new Set(pages <= 7 ? Array.from({ length: pages }, (_, i) => i + 1) : [1, pages, page - 1, page, page + 1]); let last = 0;
+    [...set].filter(n => n >= 1 && n <= pages).sort((a, b) => a - b).forEach(n => { if (last && n - last > 1) numbers.append(el('span', '…', 'pager-gap')); const b = el('button', String(n), 'page-number'); b.type = 'button'; b.disabled = busy || n === page; b.setAttribute('aria-label', 'Ir para a página ' + n); if (n === page) b.setAttribute('aria-current', 'page'); b.onclick = () => onPage(n); numbers.append(b); last = n; });
+    info.textContent = 'Página ' + page + ' de ' + pages + ' · ' + uiRange(page, size, total); info.setAttribute('aria-live', 'polite'); info.classList.add('pager-caption'); prev.disabled = busy || page <= 1; next.disabled = busy || page >= pages;
+    uiBindAction(prev, () => onPage(Math.max(1, page - 1))); uiBindAction(next, () => onPage(Math.min(pages, page + 1)));
+  }
+  function uiBusy(formId, cardsId, busy) { const form = $(formId), cards = $(cardsId); if (cards) { if (busy) cards.setAttribute('aria-busy', 'true'); else cards.removeAttribute('aria-busy'); } if (form) for (const control of form.elements) control.disabled = busy; }
+  function uiCatalogSnapshot() { const values = {}; for (const id of ['query', 'campus', 'year', 'status', 'expiryFilter', 'contractOrder']) values[id] = $(id)?.value || ''; return { values, page: state.page, unit: state.catalogUnit || '' }; }
+  function uiChips() {
+    const node = $('activeFilters'); if (!node) return; node.replaceChildren();
+    for (const id of ['query', 'campus', 'year', 'status', 'expiryFilter']) { const control = $(id), value = control?.value; if (!value || id === 'status' && value === 'Vigente') continue; const label = control.tagName === 'SELECT' ? control.selectedOptions[0]?.textContent : value, b = el('button', label + ' ×', 'filter-chip'); b.type = 'button'; b.setAttribute('aria-label', 'Remover filtro ' + label); b.onclick = () => { control.value = id === 'status' ? 'Vigente' : ''; state.page = 1; render(); }; node.append(b); }
+    if (state.catalogUnit) { const b = el('button', 'UASG ' + state.catalogUnit + ' ×', 'filter-chip'); b.type = 'button'; b.onclick = () => { state.catalogUnit = ''; state.page = 1; render(); }; node.append(b); }
+    node.hidden = !node.childElementCount;
+    const n = ['year', 'expiryFilter'].filter(id => $(id)?.value).length; $('moreFiltersSummary').textContent = 'Mais filtros' + (n ? ' (' + n + ')' : '');
+  }
+  function uiRefreshCatalog() {
+    if (!state.data) return; document.body.classList.add('has-published-data'); uiChips(); uiPager('pageInfo', 'prev', 'next', state.page, state.pages || 1, state.filteredTotal || 0, state.size, n => { state.page = n; render(); uiFocusResults('resultCount'); });
+    const updated = $('catalogUpdated'); if (updated) updated.textContent = 'Atualizado em ' + dateTime(state.data.atualizadoEm);
+  }
+  function uiRefreshExternal() {
+    const total = externalState.total || 0; uiPager('externalPageInfo', 'externalPrev', 'externalNext', externalState.page, Math.max(1, Math.ceil(total / externalState.size)), total, externalState.size, n => consultarAtasExternas(n, { pagination: true, scroll: true }), externalState.busy || externalState.dirty || !externalState.loaded);
+  }
+  function uiExternalDirty() { if (!externalState.appliedParams) return; const current = externalParams(1), applied = new URLSearchParams(externalState.appliedParams); current.delete('pagina'); applied.delete('pagina'); externalState.dirty = current.toString() !== applied.toString(); $('externalFilterHint').textContent = externalState.dirty ? 'Filtros alterados. Clique em “Pesquisar no PNCP” para aplicar.' : ''; uiRefreshExternal(); }
+  function uiRefreshOpportunities() {
+    uiPager('opportunityPageInfo', 'opportunityPrev', 'opportunityNext', opportunityState.page, opportunityState.pages || 1, opportunityState.filteredTotal || 0, opportunityState.size, n => { opportunityState.page = n; renderOpportunities(); uiFocusResults('opportunityStatus'); }, opportunityState.busy || !opportunityState.loaded);
+  }
+  function uiRefreshHistory() {
+    uiPager('historyPageInfo', 'historyPrev', 'historyNext', history.page, history.pages || 1, history.filteredTotal || 0, history.size, n => { history.page = n; cp2RenderHistory(); uiFocusResults('historyStatus'); }, history.busy || !history.loaded);
+    if (history.criteria && history.loaded) { const [start, end, unit] = history.criteria; $('historyCriteria').textContent = 'Resultados de ' + date(start) + ' a ' + date(end) + ' · ' + (unit === 'all' ? 'Regional Norte, Londrina e Apucarana' : 'UASG ' + unit); }
+  }
+  function uiCloseMenu() { document.querySelector('.header').classList.remove('nav-open'); $('menuToggle').setAttribute('aria-expanded', 'false'); document.querySelector('.nav-more').open = false; }
+  function uiInstallHeader() {
+    const header = document.querySelector('.header'), nav = document.querySelector('nav'), more = el('details', undefined, 'nav-more'), summary = el('summary', 'Mais'), list = el('div', undefined, 'nav-more-options'); more.append(summary, list);
+    ['pca', 'atas-externas', 'orientacoes'].forEach(view => { const b = nav.querySelector('[data-view="' + view + '"]'); if (b) list.append(b); }); nav.append(more); nav.id = 'mainNavigation';
+    const menu = el('button', undefined, 'menu-toggle'); menu.id = 'menuToggle'; menu.type = 'button'; menu.setAttribute('aria-label', 'Abrir menu de navegação'); menu.setAttribute('aria-controls', nav.id); menu.setAttribute('aria-expanded', 'false'); menu.append(el('span', '☰')); header.insertBefore(menu, nav); menu.onclick = () => { const open = header.classList.toggle('nav-open'); menu.setAttribute('aria-expanded', String(open)); };
+    nav.addEventListener('click', e => { if (e.target.closest('[data-view]')) uiCloseMenu(); }); document.addEventListener('click', e => { if (!header.contains(e.target)) uiCloseMenu(); }); document.addEventListener('keydown', e => { if (e.key === 'Escape' && header.classList.contains('nav-open')) { uiCloseMenu(); menu.focus(); } });
+  }
+  function uiInstallFilters() {
+    const form = $('filters'), advanced = el('details', undefined, 'advanced-filters'), summary = el('summary', 'Mais filtros'), fields = el('div', undefined, 'advanced-fields'); summary.id = 'moreFiltersSummary'; advanced.append(summary, fields);
+    for (const id of ['year', 'expiryFilter']) fields.append($(id).closest('.field')); form.append(advanced);
+    const toolbar = el('div', undefined, 'result-toolbar'); $('resultCount').before(toolbar); toolbar.append($('resultCount'), $('contractOrder').closest('.field')); const chips = el('div', undefined, 'active-filters'); chips.id = 'activeFilters'; chips.hidden = true; form.after(chips);
+    const stamp = el('p', undefined, 'catalog-updated'); stamp.id = 'catalogUpdated'; $('catalog').querySelector('.heading').append(stamp);
+    const ext = el('p', undefined, 'filter-pending'); ext.id = 'externalFilterHint'; ext.setAttribute('role', 'status'); $('externalFilters').after(ext);
+    const historyInfo = el('span'); historyInfo.id = 'historyPageInfo'; $('historyNext').before(historyInfo); const criteria = el('p', undefined, 'hint history-criteria'); criteria.id = 'historyCriteria'; $('historyStatus').before(criteria);
+  }
+  uiInstallHeader(); uiInstallFilters();
+  const uiRender = render; render = function () { uiRender(); uiRefreshCatalog(); };
+  const uiExternalRender = renderAtasExternas; renderAtasExternas = function (data) { uiExternalRender(data); externalState.lastData = data; uiRefreshExternal(); };
+  const uiOpportunityRender = renderOpportunities; renderOpportunities = function () { uiOpportunityRender(); uiRefreshOpportunities(); };
+  const uiHistoryRender = cp2RenderHistory; cp2RenderHistory = function () { uiHistoryRender(); uiRefreshHistory(); };
+  const uiOpportunityQuery = consultarOportunidades; consultarOportunidades = async function (...args) { if (opportunityState.busy) return; uiClearFeedback('opportunityStatus'); const pending = uiOpportunityQuery(...args); uiBusy('opportunityFilters', 'opportunityCards', opportunityState.busy); uiRefreshOpportunities(); try { return await pending; } finally { uiBusy('opportunityFilters', 'opportunityCards', false); uiRefreshOpportunities(); } };
+  const uiHistoryQuery = cp2History; cp2History = async function (...args) { if (history.busy) return; uiClearFeedback('historyStatus'); const pending = uiHistoryQuery(...args); if (history.busy) $('historyCards').setAttribute('aria-busy', 'true'); uiRefreshHistory(); try { return await pending; } finally { $('historyCards').removeAttribute('aria-busy'); uiRefreshHistory(); } };
+  const uiNavigate = navigate; navigate = function (view) {
+    if (['contratos', 'atas', 'todos'].includes(state.view)) uiViews.set(state.view, uiCatalogSnapshot());
+    uiNavigate(view); const saved = uiViews.get(view); if (['contratos', 'atas', 'todos'].includes(view)) {
+      for (const id of ['query', 'campus', 'year', 'status', 'expiryFilter', 'contractOrder']) if ($(id)) $(id).value = saved ? saved.values[id] : (id === 'status' ? 'Vigente' : id === 'contractOrder' ? 'expiryAsc' : '');
+      state.catalogUnit = saved?.unit || ''; state.page = saved?.page || 1; years(); render();
+    }
+    document.querySelector('.nav-more').classList.toggle('contains-active', ['pca', 'atas-externas', 'orientacoes'].includes(view)); uiCloseMenu();
+    const section = view === 'historico' ? $('history') : view === 'contratos' || view === 'atas' || view === 'todos' ? $('catalog') : view === 'atas-externas' ? $('externalAtas') : view === 'oportunidades' ? $('opportunities') : view === 'pca' ? $('annualPlan') : view === 'orientacoes' ? $('guidance') : $('home'); if (section && !section.hidden) uiFocusResults(section.querySelector('h1') || section);
+  };
+  document.addEventListener('click', e => { const advanced = document.querySelector('.advanced-filters'); if (advanced?.open && !advanced.contains(e.target)) advanced.open = false; });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { const advanced = document.querySelector('.advanced-filters'); if (advanced?.open) { advanced.open = false; advanced.querySelector('summary').focus(); } } });
+  const uiDetail = detail; detail = function (row) { uiLastOpener = document.activeElement; const result = uiDetail(row); $('detail').scrollTop = 0; const search = $('detailBody').querySelector('.detail-search'); if (search) { const count = el('p', undefined, 'hint item-result-count'); count.setAttribute('role', 'status'); search.after(count); const update = () => { count.textContent = $('detailBody').querySelectorAll('.item-list article').length + ' item(ns) exibido(s)'; }; search.addEventListener('input', update); update(); } return result; };
+  const uiPncpOpen = cp2Open; cp2Open = async function (item) { uiLastOpener = document.activeElement; const pending = uiPncpOpen(item); $('detail').scrollTop = 0; return pending; };
+  $('detail').addEventListener('close', () => { if (uiLastOpener?.isConnected) uiLastOpener.focus({ preventScroll: true }); });
+  $('filters').addEventListener('submit', () => uiFocusResults('resultCount'));
+  $('externalFilters').addEventListener('submit', event => { event.preventDefault(); event.stopImmediatePropagation(); consultarAtasExternas(1, { scroll: true }); }, true);
+  uiBindAction($('externalClear'), () => { $('externalFilters').reset(); consultarAtasExternas(1, { scroll: true }); });
+  const uiPcaRows = pcaRenderItemRows; pcaRenderItemRows = function (id) { uiPcaRows(id); const total = pcaFilteredItems(id).length, page = pcaState.pages.get(String(id)) || 1; uiPager('pcaPageInfo-' + id, 'pcaPrev-' + id, 'pcaNext-' + id, page, Math.max(1, Math.ceil(total / 10)), total, 10, n => { pcaState.pages.set(String(id), n); pcaRenderItemRows(id); uiFocusResults($('pcaRows-' + id).closest('.pca-category-body')); }); };
+  uiRefreshCatalog(); uiRefreshExternal(); uiRefreshOpportunities(); uiRefreshHistory();
+
+  Object.assign(globalThis, { uiFocusResults, uiClearFeedback, uiFeedback, uiRange, uiExpiry, uiBindAction, uiPager, uiBusy, uiCatalogSnapshot, uiChips, uiRefreshCatalog, uiRefreshExternal, uiExternalDirty, uiRefreshOpportunities, uiRefreshHistory, uiCloseMenu, uiInstallHeader, uiInstallFilters });
+}
+document.addEventListener('DOMContentLoaded', iniciarUsabilidadePortal, { once: true });
