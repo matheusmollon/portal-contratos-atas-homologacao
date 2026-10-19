@@ -3,7 +3,7 @@
 const $ = id => document.getElementById(id);
 const requestedView = new URLSearchParams(location.search).get('view');
 const initialView = ['inicio', 'contratos', 'atas', 'pca', 'atas-externas', 'oportunidades', 'orientacoes'].includes(requestedView) ? requestedView : (document.body.dataset.tela || 'inicio');
-const state = { data: null, view: initialView, page: 1, size: 12, items: new Map(), busy: false };
+const state = { data: null, view: initialView, page: 1, size: 8, items: new Map(), busy: false };
 const externalState = { page: 1, size: 25, total: 0, busy: false, query: '', cache: new Map(), controller: null, loaded: false };
 const opportunityState = { page: 1, size: 12, busy: false, loaded: false, items: [], controller: null, failures: 0 };
 const pcaState = { busy: false, controller: null, year: null, sequencial: null, categories: [], items: new Map(), pages: new Map(), filters: new Map() };
@@ -133,23 +133,37 @@ function externalScope() {
   for (const id of ['externalType', 'externalModality', 'externalUf', 'externalPower']) if ($(id).value) labels.push($(id).selectedOptions[0].textContent);
   $('externalScope').textContent = 'Filtros aplicados: ' + labels.join(' · ') + ' · ' + externalState.size + ' resultados por página.';
 }
-function consultarAtasExternas(page) {
-  if (externalState.busy) return;
-  const params = externalParams(page), query = params.get('q'), key = params.toString();
-  externalScope();
-  externalState.page = page; externalState.query = query;
-  if (externalState.cache.has(key)) { renderAtasExternas(externalState.cache.get(key)); return; }
-  externalState.busy = true; $('externalStatus').textContent = 'Consultando o PNCP…'; $('externalCards').replaceChildren(); $('externalPrev').disabled = true; $('externalNext').disabled = true; $('externalSearch').disabled = true;
-  if (externalState.controller) externalState.controller.abort(); externalState.controller = new AbortController();
+async function consultarAtasExternas(page, options = {}) {
+  if (externalState.busy) return false;
+  const params = options.pagination && externalState.appliedParams ? new URLSearchParams(externalState.appliedParams) : externalParams(page); params.set('pagina', String(Math.max(1, page)));
+  let key = params.toString(); const cached = externalState.cache.get(key), previousPage = externalState.page;
+  externalState.busy = true; externalState.dirty = false;
+  if (typeof uiClearFeedback === 'function') uiClearFeedback('externalStatus');
+  $('externalStatus').textContent = 'Consultando o PNCP…'; $('externalCards').setAttribute('aria-busy', 'true'); $('externalPrev').disabled = $('externalNext').disabled = true;
   for (const control of $('externalFilters').elements) control.disabled = true;
-  const timeout = setTimeout(() => externalState.controller.abort(), 30000);
-  fetch('https://pncp.gov.br/api/search/?' + params.toString(), { headers: { Accept: 'application/json' }, signal: externalState.controller.signal }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(data => {
-    if (!data || !Array.isArray(data.items) || !Number.isFinite(Number(data.total))) throw new Error('Resposta inválida');
-    externalState.cache.set(key, data); renderAtasExternas(data);
-  }).catch(err => {
-    externalState.total = 0; $('externalCards').replaceChildren(); const box = el('div', undefined, 'external-error'), message = err.name === 'AbortError' ? 'A consulta ao PNCP excedeu o tempo de espera.' : 'O PNCP não respondeu à consulta neste momento.'; box.append(el('p', message)); const retry = el('button', 'Tentar novamente', 'secondary'); retry.addEventListener('click', () => consultarAtasExternas(externalState.page)); box.append(retry); $('externalCards').append(box); $('externalStatus').textContent = 'Consulta externa temporariamente indisponível.'; $('externalPageInfo').textContent = '';
-  }).finally(() => { clearTimeout(timeout); externalState.busy = false; for (const control of $('externalFilters').elements) control.disabled = false; $('externalPrev').disabled = externalState.page <= 1; $('externalNext').disabled = !externalState.total || externalState.page >= Math.ceil(externalState.total / externalState.size); });
+  const controller = new AbortController(); externalState.controller = controller; const timeout = setTimeout(() => controller.abort(), 30000); let success = false;
+  try {
+    let data = cached && Date.now() - cached.at < 300000 ? cached.data : null;
+    if (!data) { const r = await fetch('https://pncp.gov.br/api/search/?' + key, { headers: { Accept: 'application/json' }, signal: controller.signal }); if (!r.ok) throw new Error('HTTP ' + r.status); data = await r.json(); }
+    if (!data || !Array.isArray(data.items) || !Number.isFinite(Number(data.total)) || Number(data.total) < 0) throw new Error('Resposta inválida');
+    const lastPage = Math.max(1, Math.ceil(Number(data.total) / externalState.size));
+    if (Number(params.get('pagina')) > lastPage) { params.set('pagina', String(lastPage)); key = params.toString(); const r = await fetch('https://pncp.gov.br/api/search/?' + key, { headers: { Accept: 'application/json' }, signal: controller.signal }); if (!r.ok) throw new Error('HTTP ' + r.status); data = await r.json(); if (!data || !Array.isArray(data.items) || !Number.isFinite(Number(data.total)) || Number(data.total) < 0 || lastPage > Math.max(1, Math.ceil(Number(data.total) / externalState.size))) throw new Error('A paginação mudou; tente novamente.'); }
+    if (externalState.cache.size >= 12) externalState.cache.delete(externalState.cache.keys().next().value); externalState.cache.set(key, { at: Date.now(), data });
+    externalState.page = Number(params.get('pagina')); externalState.query = params.get('q') || ''; externalState.appliedParams = key; externalState.lastData = data; externalScope(); renderAtasExternas(data); success = true;
+  } catch (err) {
+    externalState.page = previousPage;
+    if (externalState.lastData) renderAtasExternas(externalState.lastData);
+    const message = (err.name === 'AbortError' ? 'A consulta ao PNCP demorou mais que o esperado.' : 'O PNCP não respondeu à consulta.') + (externalState.lastData ? ' Mantidos os resultados da consulta anterior, na página ' + previousPage + '.' : ' Tente novamente em alguns instantes.');
+    if (typeof uiFeedback === 'function') uiFeedback('externalStatus', message, () => consultarAtasExternas(page, options)); else $('externalStatus').textContent = message;
+  } finally {
+    clearTimeout(timeout); externalState.busy = false; $('externalCards').removeAttribute('aria-busy');
+    for (const control of $('externalFilters').elements) control.disabled = false;
+    $('externalPrev').disabled = !externalState.loaded || externalState.page <= 1; $('externalNext').disabled = !externalState.total || externalState.page >= Math.ceil(externalState.total / externalState.size);
+    if (typeof uiExternalDirty === 'function') uiExternalDirty(); if (typeof uiRefreshExternal === 'function') uiRefreshExternal(); if (success && options.scroll && typeof uiFocusResults === 'function') uiFocusResults('externalStatus');
+  }
+  return success;
 }
+
 function opportunityUrl(item) {
   const raw = String(item.linkSistemaOrigem || '').trim();
   if (/^https:\/\/[^\s]+$/i.test(raw)) return raw;
@@ -182,11 +196,12 @@ function renderOpportunities() {
     if (url) { const a = el('a', 'Consultar ou participar ↗', 'primary opportunity-open'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; card.append(a); } $('opportunityCards').append(card);
   }
   if (!items.length) $('opportunityCards').append(el('p', 'Nenhuma oportunidade aberta ou programada foi encontrada para os filtros selecionados.', 'empty'));
+  opportunityState.filteredTotal = items.length; opportunityState.pages = pages;
   $('opportunityStatus').textContent = items.length + ' oportunidade(s) encontrada(s) nas três unidades.' + (opportunityState.failures ? ' ' + opportunityState.failures + ' de 9 consulta(s) não responderam; os demais resultados foram preservados.' : ''); $('opportunityPageInfo').textContent = 'Página ' + opportunityState.page + ' de ' + pages; $('opportunityPrev').disabled = opportunityState.page <= 1; $('opportunityNext').disabled = opportunityState.page >= pages;
 }
 async function consultarOportunidades(force = false) {
   if (opportunityState.busy) return; if (opportunityState.loaded && !force) { renderOpportunities(); if (typeof renderDashboard === 'function') renderDashboard(); return; }
-  opportunityState.busy = true; opportunityState.error = false; $('opportunityStatus').textContent = 'Consultando oportunidades no PNCP…'; $('opportunityCards').replaceChildren(); $('opportunityReload').disabled = true; if (typeof renderDashboard === 'function') renderDashboard();
+  const previous = { items: opportunityState.items.slice(), loaded: opportunityState.loaded, page: opportunityState.page, at: opportunityState.at, failures: opportunityState.failures }; opportunityState.busy = true; opportunityState.error = false; $('opportunityStatus').textContent = 'Consultando oportunidades no PNCP…'; $('opportunityReload').disabled = true; if (typeof renderDashboard === 'function') renderDashboard();
   const controller = new AbortController(); opportunityState.controller = controller; const signal = controller.signal, limit = new Date(); limit.setFullYear(limit.getFullYear() + 1); const dataFinal = limit.toISOString().slice(0, 10), unique = new Map(); let failures = 0, successes = 0;
   try {
     for (const ug of OPPORTUNITY_UASGS) for (const modality of OPPORTUNITY_MODALITIES) {
@@ -195,12 +210,12 @@ async function consultarOportunidades(force = false) {
           if (signal.aborted) throw new Error('Cancelado'); const p = new URLSearchParams({ dataFinal: dataFinal.replaceAll('-', ''), codigoModalidadeContratacao: String(modality), cnpj: UTFPR_CNPJ, codigoUnidadeAdministrativa: ug, pagina: String(page), tamanhoPagina: '50' }), local = new AbortController(), abort = () => local.abort(); signal.addEventListener('abort', abort, { once: true }); const timer = setTimeout(abort, 25000); let d;
           try { const r = await fetch('https://pncp.gov.br/api/consulta/v1/contratacoes/proposta?' + p, { headers: { Accept: 'application/json' }, signal: local.signal }); if (r.status === 204) d = { data: [], totalPaginas: 0 }; else { if (!r.ok) throw new Error('HTTP ' + r.status); d = await r.json(); if (!Array.isArray(d.data) || !Number.isFinite(Number(d.totalPaginas))) throw new Error('Resposta inválida'); } } finally { clearTimeout(timer); signal.removeEventListener('abort', abort); }
           pages = Math.max(1, Number(d.totalPaginas)); for (const item of d.data) if (item && OPPORTUNITY_UASGS.includes(opportunityUnit(item))) unique.set(item.numeroControlePNCP || opportunityUnit(item) + '|' + item.numeroCompra + '|' + item.anoCompra, item); page++; if (page <= pages) await new Promise(r => setTimeout(r, 400));
-        } while (page <= pages); successes++; opportunityState.items = [...unique.values()]; opportunityState.loaded = true; if (typeof renderDashboard === 'function') renderDashboard();
+        } while (page <= pages); successes++; if (!previous.loaded) { opportunityState.items = [...unique.values()]; opportunityState.loaded = true; } if (typeof renderDashboard === 'function') renderDashboard();
       } catch { failures++; } await new Promise(r => setTimeout(r, 300));
     }
-    if (!successes && !unique.size) throw new Error('Nenhuma consulta respondeu'); opportunityState.items = [...unique.values()]; opportunityState.loaded = true; opportunityState.failures = failures; opportunityState.at = new Date().toISOString(); opportunityState.page = 1; renderOpportunities();
-  } catch { opportunityState.error = true; opportunityState.failures = Math.max(1, failures); $('opportunityStatus').textContent = 'Consulta temporariamente indisponível.'; const box = el('div', undefined, 'external-error'); box.append(el('p', 'O PNCP não respondeu à consulta de oportunidades neste momento.')); const retry = el('button', 'Tentar novamente', 'secondary'); retry.onclick = () => consultarOportunidades(true); box.append(retry); $('opportunityCards').append(box); }
-  finally { opportunityState.busy = false; $('opportunityReload').disabled = false; if (typeof renderDashboard === 'function') renderDashboard(); }
+    if (!successes && !unique.size) throw new Error('Nenhuma consulta respondeu'); opportunityState.items = [...unique.values()]; opportunityState.loaded = true; opportunityState.failures = failures; opportunityState.at = new Date().toISOString(); opportunityState.page = previous.loaded ? previous.page : 1; renderOpportunities();
+  } catch { if (previous.loaded) { opportunityState.items = previous.items; opportunityState.loaded = true; opportunityState.page = previous.page; opportunityState.at = previous.at; opportunityState.failures = previous.failures; renderOpportunities(); } opportunityState.error = true; opportunityState.failures = Math.max(1, failures); $('opportunityStatus').textContent = 'Consulta temporariamente indisponível.'; const box = el('div', undefined, 'external-error'); box.append(el('p', 'O PNCP não respondeu à consulta de oportunidades neste momento.')); const retry = el('button', 'Tentar novamente', 'secondary'); retry.onclick = () => consultarOportunidades(true); box.append(retry); if (typeof uiFeedback === 'function') uiFeedback('opportunityStatus', previous.loaded ? 'Não foi possível atualizar. Os resultados anteriores foram mantidos.' : 'Não foi possível consultar oportunidades.', () => consultarOportunidades(true)); else $('opportunityCards').append(box); }
+  finally { opportunityState.busy = false; $('opportunityReload').disabled = false; if (typeof uiBusy === 'function') uiBusy('opportunityFilters', 'opportunityCards', false); if (typeof uiRefreshOpportunities === 'function') uiRefreshOpportunities(); if (typeof renderDashboard === 'function') renderDashboard(); }
 }
 function pcaFillYears() {
   const select = $('pcaYear'), current = new Date().getFullYear(), old = select.value || String(current); select.replaceChildren();
@@ -243,17 +258,18 @@ function pcaRender(summary) {
 }
 async function consultarPca() {
   if (pcaState.busy) return; const year = Number($('pcaYear').value); if (year < 2022 || year > new Date().getFullYear() + 1) return;
-  pcaState.busy = true; pcaState.year = year; $('pcaSearch').disabled = true; $('pcaStatus').textContent = 'Localizando o PCA da Regional Norte…'; $('pcaContent').replaceChildren(); if (pcaState.controller) pcaState.controller.abort(); pcaState.controller = new AbortController(); const signal = pcaState.controller.signal, base = 'https://pncp.gov.br/api/pncp/v1/orgaos/' + UTFPR_CNPJ + '/pca/' + year;
+  const previous = { year: pcaState.year, sequencial: pcaState.sequencial, categories: pcaState.categories, items: pcaState.items, pages: pcaState.pages, filters: pcaState.filters, summary: pcaState.summary };
+  if (typeof uiClearFeedback === 'function') uiClearFeedback('pcaStatus'); pcaState.busy = true; pcaState.year = year; $('pcaSearch').disabled = true; $('pcaYear').disabled = true; $('pcaStatus').textContent = 'Localizando o PCA da Regional Norte…'; $('pcaContent').setAttribute('aria-busy', 'true'); $('pcaContent').inert = true; if (pcaState.controller) pcaState.controller.abort(); pcaState.controller = new AbortController(); const signal = pcaState.controller.signal, base = 'https://pncp.gov.br/api/pncp/v1/orgaos/' + UTFPR_CNPJ + '/pca/' + year, timer = setTimeout(() => pcaState.controller.abort(), 30000);
   try {
     const units = await pcaFetchJson(base + '/consolidado/unidades?pagina=1&tamanhoPagina=50', signal), regional = Array.isArray(units) ? units.find(x => String(x.codigoUnidade) === '153176') : null; if (!regional) throw new Error('PCA_NOT_FOUND');
     pcaState.sequencial = regional.sequencialPca ?? regional.sequencialPCA; const plan = base + '/' + pcaState.sequencial;
     $('pcaStatus').textContent = 'Carregando resumo e categorias…'; const [summary, categories] = await Promise.all([pcaFetchJson(plan + '/consolidado', signal), pcaFetchJson(plan + '/valorescategoriaitem', signal)]); if (!summary || !Array.isArray(categories)) throw new Error('INVALID_RESPONSE');
-    pcaState.categories = categories; pcaState.items.clear(); pcaState.pages.clear(); pcaState.filters.clear(); $('pcaStatus').textContent = 'Carregando itens das categorias…';
-    await Promise.all(categories.map(async cat => { const count = Number(cat.quantidadeItens) || 0, pages = Math.max(1, Math.ceil(count / 100)), urls = Array.from({ length: pages }, (_, i) => plan + '/itens?categoria=' + encodeURIComponent(cat.categoriaItemId) + '&pagina=' + (i + 1) + '&tamanhoPagina=100'), parts = await Promise.all(urls.map(url => pcaFetchJson(url, signal))), items = parts.flatMap(x => Array.isArray(x) ? x : (Array.isArray(x?.data) ? x.data : [])); pcaState.items.set(String(cat.categoriaItemId), items); pcaState.pages.set(String(cat.categoriaItemId), 1); }));
-    pcaRender(summary); $('pcaStatus').textContent = 'PCA ' + year + ' carregado: ' + Number(summary.quantidade || 0).toLocaleString('pt-BR') + ' item(ns) em ' + categories.length + ' categoria(s).';
+    const collected = new Map(); $('pcaStatus').textContent = 'Carregando itens das categorias…';
+    await Promise.all(categories.map(async cat => { const count = Number(cat.quantidadeItens) || 0, pages = Math.max(1, Math.ceil(count / 100)), urls = Array.from({ length: pages }, (_, i) => plan + '/itens?categoria=' + encodeURIComponent(cat.categoriaItemId) + '&pagina=' + (i + 1) + '&tamanhoPagina=100'), parts = await Promise.all(urls.map(url => pcaFetchJson(url, signal))), items = parts.flatMap(x => Array.isArray(x) ? x : (Array.isArray(x?.data) ? x.data : [])); collected.set(String(cat.categoriaItemId), items); }));
+    pcaState.categories = categories; pcaState.items = collected; pcaState.pages = new Map(); pcaState.filters = new Map(); pcaState.summary = summary; pcaRender(summary); $('pcaStatus').textContent = 'PCA ' + year + ' carregado: ' + Number(summary.quantidade || 0).toLocaleString('pt-BR') + ' item(ns) em ' + categories.length + ' categoria(s).';
   } catch (err) {
-    const msg = err.message === 'PCA_NOT_FOUND' ? 'Não foi localizado PCA da UASG 153176 para ' + year + '.' : err.name === 'AbortError' ? 'A consulta foi interrompida.' : 'O PNCP não respondeu corretamente à consulta do PCA. Tente novamente em alguns instantes.'; $('pcaStatus').textContent = msg; const box = el('div', undefined, 'external-error'); box.append(el('p', msg)); const retry = el('button', 'Tentar novamente', 'secondary'); retry.addEventListener('click', consultarPca); box.append(retry); $('pcaContent').append(box);
-  } finally { pcaState.busy = false; $('pcaSearch').disabled = false; }
+    pcaState.controller.abort(); Object.assign(pcaState, previous); const msg = err.message === 'PCA_NOT_FOUND' ? 'Não foi localizado PCA da UASG 153176 para ' + year + '.' : err.name === 'AbortError' ? 'A consulta foi interrompida.' : 'O PNCP não respondeu corretamente à consulta do PCA. Tente novamente em alguns instantes.'; $('pcaStatus').textContent = msg; const box = el('div', undefined, 'external-error'); box.append(el('p', msg)); const retry = el('button', 'Tentar novamente', 'secondary'); retry.addEventListener('click', consultarPca); box.append(retry); if (typeof uiFeedback === 'function') uiFeedback('pcaStatus', msg + (previous.summary ? ' O PCA ' + previous.year + ' anteriormente carregado foi mantido.' : ''), consultarPca); else $('pcaContent').append(box);
+  } finally { clearTimeout(timer); pcaState.busy = false; $('pcaSearch').disabled = false; $('pcaYear').disabled = false; $('pcaContent').removeAttribute('aria-busy'); $('pcaContent').inert = false; }
 }
 function compareContracts(a, b, order) {
   const number = (x, y) => String(x.numero || '').localeCompare(String(y.numero || ''), undefined, { numeric: true }) || Number(x.ano || 0) - Number(y.ano || 0);
@@ -270,13 +286,17 @@ function render() {
   const found = rows().filter(r => campusMatch(r, campus) && (!year || r.ano === year) && (!status || r.situacao === status) && (!q || norm([r.objeto, r.numero, r.fornecedor, r.processo, campusLabel(r)].join(' ')).includes(q) || matchItems(r, q).length));
   found.sort((a, b) => state.view === 'contratos' ? compareContracts(a, b, $('contractOrder')?.value || 'expiryAsc') : String(b.ano).localeCompare(String(a.ano)) || a.numero.localeCompare(b.numero, undefined, { numeric: true }));
   const pages = Math.max(1, Math.ceil(found.length / state.size)); state.page = Math.min(state.page, pages);
+  state.filteredTotal = found.length; state.pages = pages;
   $('resultCount').textContent = found.length + ' resultado(s) · ' + (status || 'Todas as situações') + (state.catalogUnit ? ' · UASG ' + state.catalogUnit : ''); $('cards').replaceChildren();
   for (const row of found.slice((state.page - 1) * state.size, state.page * state.size)) {
-    const card = el('article', undefined, 'card'), top = el('div', undefined, 'card-top'); top.append(el('h2', (row.tipo === 'ata' ? 'Ata ' : 'Contrato ') + row.numero), badge(row)); card.append(top, el('p', row.objeto, 'object'));
-    const dl = el('dl'); field(dl, 'CÂMPUS', campusLabel(row)); if (row.fornecedor) field(dl, 'FORNECEDOR', row.fornecedor); field(dl, 'VALOR ' + (row.tipo === 'ata' ? 'REGISTRADO' : 'GLOBAL'), money(row.valor)); field(dl, 'VIGÊNCIA', date(row.inicio) + ' a ' + date(row.fim)); card.append(dl);
+    const card = el('article', undefined, 'card catalog-card'), top = el('div', undefined, 'card-top'); card.dataset.recordId = row.id;
+    top.append(el('h2', row.numero), badge(row)); card.append(top, el('p', row.objeto || 'Objeto não informado pela fonte.', 'object'));
+    const meta = el('p', [campusLabel(row), row.fornecedor].filter(Boolean).join(' · '), 'catalog-meta'); card.append(meta);
+    if (typeof uiExpiry === 'function') card.append(uiExpiry(row)); else card.append(el('p', 'Vigência: ' + date(row.inicio) + ' a ' + date(row.fim), 'hint'));
+
     if (q) { const matches = matchItems(row, q); if (matches.length) { const m = el('div', undefined, 'match'); m.append(el('strong', matches.length + ' registro(s) de item encontrado(s): '), mark(matches[0].descricao, $('query').value.trim())); card.append(m); } }
     if (row.avisoItens) card.append(el('p', row.avisoItens, 'notice warning'));
-    const b = el('button', row.tipo === 'ata' ? 'Ver ata e itens →' : 'Ver contrato →', 'secondary'); b.addEventListener('click', () => detail(row)); card.append(b); $('cards').append(card);
+    const foot = el('div', undefined, 'catalog-card-footer'), value = el('span', money(row.valor), 'catalog-value'); value.setAttribute('aria-label', (row.tipo === 'ata' ? 'Valor registrado: ' : 'Valor global: ') + money(row.valor)); const b = el('button', row.tipo === 'ata' ? 'Ver ata e itens →' : 'Ver detalhes →', 'text-action'); b.setAttribute('aria-label', 'Ver detalhes ' + (row.tipo === 'ata' ? 'da ata ' : 'do contrato ') + row.numero); b.addEventListener('click', () => detail(row)); foot.append(value, b); card.append(foot); $('cards').append(card);
   }
   if (!found.length) $('cards').append(el('p', 'Nenhum registro encontrado. Tente outra palavra, ano ou situação.', 'empty'));
   $('pageInfo').textContent = 'Página ' + state.page + ' de ' + pages; $('prev').disabled = state.page === 1; $('next').disabled = state.page === pages;
@@ -328,7 +348,7 @@ function detail(row) {
 }
 document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => navigate(b.dataset.view)));
 $('filters').addEventListener('submit', e => { e.preventDefault(); state.page = 1; render(); });
-$('externalFilters').addEventListener('input', () => { externalState.page = 1; $('externalPrev').disabled = true; $('externalNext').disabled = true; });
+$('externalFilters').addEventListener('input', () => { if (typeof uiExternalDirty === 'function') uiExternalDirty(); });
 $('externalFilters').addEventListener('submit', e => { e.preventDefault(); externalState.page = 1; consultarAtasExternas(1); });
 $('externalClear').addEventListener('click', () => { $('externalFilters').reset(); externalState.page = 1; consultarAtasExternas(1); });
 $('externalPrev').addEventListener('click', () => consultarAtasExternas(Math.max(1, externalState.page - 1)));
