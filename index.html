@@ -2,11 +2,23 @@
 <html lang="pt-BR">
 
 <head>
-    <title>Portal de Transparência · UTFPR</title>
+    <title>Portal da Transparência · UTFPR</title>
     <base target="_top">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="./styles.css?v=20261020-compras2">
+    <link rel="stylesheet" href="./styles.css?v=20261020-acoes3">
+    <style id="officialDataNoticeStyle">
+        /* Avisos dos dados oficiais; erros e indicadores de consulta preservam seus estados. */
+        #notice.notice:not(.error):not(.query-error):not(.query-loading) {
+            background: #fff8df;
+            color: #68531b;
+            border: 1px solid #efdfaa;
+            border-left: 3px solid #d9b74b;
+            border-radius: 6px;
+            padding: 12px 14px;
+            line-height: 1.65
+        }
+    </style>
 </head>
 
 <body data-tela="inicio">
@@ -144,9 +156,10 @@
                     fill="#19161A" transform="translate(475,352)" />
             </svg>
             <div class="brand-title">
-                <div class="portal-title"><strong>Portal de Transparência</strong><span
+                <div class="portal-title"><strong>Portal da Transparência</strong><span
                         class="homologacao-badge">Homologação</span></div><span>Campi: Cornélio Procópio, Londrina e
                     Apucarana</span>
+            </div>
         </div>
         <nav aria-label="Navegação principal"><button data-view="inicio">Início</button><button
                 data-view="contratos">Contratos</button><button data-view="atas">Atas e itens</button><button
@@ -447,9 +460,9 @@
             Confira as informações nos documentos oficiais antes de utilizá-las em uma demanda.</p>
         <button id="closeHomologacao" type="button" class="primary" autofocus>Entendi, acessar o portal</button>
     </dialog>
-    <script src="./app.js?v=20261020-compras2" defer></script>
-    <script src="./consultas-pncp.js?v=20261020-compras2" defer></script>
-    <script src="./painel-inicial.js?v=20261020-compras2" defer></script>
+    <script src="./app.js?v=20261020-acoes3" defer></script>
+    <script src="./consultas-pncp.js?v=20261020-acoes3" defer></script>
+    <script src="./painel-inicial.js?v=20261020-acoes3" defer></script>
 </body>
 
 </html>
