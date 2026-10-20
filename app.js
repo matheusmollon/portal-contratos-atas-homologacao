@@ -206,25 +206,23 @@ function renderOpportunities() {
   }
   if (!items.length) $('opportunityCards').append(el('p', 'Nenhuma oportunidade aberta ou programada foi encontrada para os filtros selecionados.', 'empty'));
   opportunityState.filteredTotal = items.length; opportunityState.pages = pages;
-  $('opportunityStatus').textContent = items.length + ' oportunidade(s) encontrada(s) nas três unidades.' + (opportunityState.failures ? ' ' + opportunityState.failures + ' de 9 consulta(s) não responderam; os demais resultados foram preservados.' : ''); $('opportunityPageInfo').textContent = 'Página ' + opportunityState.page + ' de ' + pages; $('opportunityPrev').disabled = opportunityState.page <= 1; $('opportunityNext').disabled = opportunityState.page >= pages;
+  $('opportunityStatus').textContent = items.length + ' oportunidade(s) encontrada(s) nas três unidades.'; const stamp = $('opportunityUpdated'); if (stamp) { const stale = Date.now() - Date.parse(opportunityState.at) > 6 * 3600000; stamp.textContent = 'Oportunidades atualizadas em ' + dateTime(opportunityState.at) + (stale ? ' · A última coleta tem mais de 6 horas. Confira os prazos na fonte oficial.' : ' · Novas publicações aparecerão após a próxima coleta.'); } $('opportunityPageInfo').textContent = 'Página ' + opportunityState.page + ' de ' + pages; $('opportunityPrev').disabled = opportunityState.page <= 1; $('opportunityNext').disabled = opportunityState.page >= pages;
 }
 async function consultarOportunidades(force = false) {
   if (opportunityState.busy) return; if (opportunityState.loaded && !force) { renderOpportunities(); if (typeof renderDashboard === 'function') renderDashboard(); return; }
-  const previous = { items: opportunityState.items.slice(), loaded: opportunityState.loaded, page: opportunityState.page, at: opportunityState.at, failures: opportunityState.failures }; opportunityState.busy = true; opportunityState.error = false; $('opportunityStatus').textContent = 'Consultando oportunidades no PNCP…'; $('opportunityReload').disabled = true; if (typeof renderDashboard === 'function') renderDashboard();
-  const controller = new AbortController(); opportunityState.controller = controller; const signal = controller.signal, limit = new Date(); limit.setFullYear(limit.getFullYear() + 1); const dataFinal = limit.toISOString().slice(0, 10), unique = new Map(); let failures = 0, successes = 0;
+  opportunityState.busy = true; opportunityState.error = false; $('opportunityStatus').textContent = 'Carregando oportunidades publicadas pelo coletor…'; $('opportunityReload').disabled = true;
+  const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 20000); opportunityState.controller = controller;
   try {
-    for (const ug of OPPORTUNITY_UASGS) for (const modality of OPPORTUNITY_MODALITIES) {
-      try {
-        let page = 1, pages = 1; do {
-          if (signal.aborted) throw new Error('Cancelado'); const p = new URLSearchParams({ dataFinal: dataFinal.replaceAll('-', ''), codigoModalidadeContratacao: String(modality), cnpj: UTFPR_CNPJ, codigoUnidadeAdministrativa: ug, pagina: String(page), tamanhoPagina: '50' }), local = new AbortController(), abort = () => local.abort(); signal.addEventListener('abort', abort, { once: true }); const timer = setTimeout(abort, 25000); let d;
-          try { const r = await fetch('https://pncp.gov.br/api/consulta/v1/contratacoes/proposta?' + p, { headers: { Accept: 'application/json' }, signal: local.signal }); if (r.status === 204) d = { data: [], totalPaginas: 0 }; else { if (!r.ok) throw new Error('HTTP ' + r.status); d = await r.json(); if (!Array.isArray(d.data) || !Number.isFinite(Number(d.totalPaginas))) throw new Error('Resposta inválida'); } } finally { clearTimeout(timer); signal.removeEventListener('abort', abort); }
-          pages = Math.max(1, Number(d.totalPaginas)); for (const item of d.data) if (item && OPPORTUNITY_UASGS.includes(opportunityUnit(item))) unique.set(item.numeroControlePNCP || opportunityUnit(item) + '|' + item.numeroCompra + '|' + item.anoCompra, item); page++; if (page <= pages) await new Promise(r => setTimeout(r, 400));
-        } while (page <= pages); successes++; if (!previous.loaded) { opportunityState.items = [...unique.values()]; opportunityState.loaded = true; } if (typeof renderDashboard === 'function') renderDashboard();
-      } catch { failures++; } await new Promise(r => setTimeout(r, 300));
-    }
-    if (!successes && !unique.size) throw new Error('Nenhuma consulta respondeu'); opportunityState.items = [...unique.values()]; opportunityState.loaded = true; opportunityState.failures = failures; opportunityState.at = new Date().toISOString(); opportunityState.page = previous.loaded ? previous.page : 1; renderOpportunities();
-  } catch { if (previous.loaded) { opportunityState.items = previous.items; opportunityState.loaded = true; opportunityState.page = previous.page; opportunityState.at = previous.at; opportunityState.failures = previous.failures; renderOpportunities(); } opportunityState.error = true; opportunityState.failures = Math.max(1, failures); $('opportunityStatus').textContent = 'Consulta temporariamente indisponível.'; const box = el('div', undefined, 'external-error'); box.append(el('p', 'O PNCP não respondeu à consulta de oportunidades neste momento.')); const retry = el('button', 'Tentar novamente', 'secondary'); retry.onclick = () => consultarOportunidades(true); box.append(retry); if (typeof uiFeedback === 'function') uiFeedback('opportunityStatus', previous.loaded ? 'Não foi possível atualizar. Os resultados anteriores foram mantidos.' : 'Não foi possível consultar oportunidades.', () => consultarOportunidades(true)); else $('opportunityCards').append(box); }
-  finally { opportunityState.busy = false; $('opportunityReload').disabled = false; if (typeof uiBusy === 'function') uiBusy('opportunityFilters', 'opportunityCards', false); if (typeof uiRefreshOpportunities === 'function') uiRefreshOpportunities(); if (typeof renderDashboard === 'function') renderDashboard(); }
+    const r = await fetch('./oportunidades.json?at=' + Date.now(), { cache: 'no-store', signal: controller.signal }); if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json(); if (!d || d.ok !== true || d.formato !== 1 || d.completo !== true || !Array.isArray(d.oportunidades) || !Number.isFinite(Date.parse(d.atualizadoEm))) throw new Error('Arquivo de oportunidades inválido.');
+    const ids = new Set(), items = d.oportunidades; for (const item of items) { if (!item || !/^75101873000190-1-\d+\/\d{4}$/.test(String(item.numeroControlePNCP || '')) || !OPPORTUNITY_UASGS.includes(opportunityUnit(item)) || !OPPORTUNITY_MODALITIES.includes(Number(item.modalidadeId)) || !Number.isFinite(Date.parse(item.dataEncerramentoProposta)) || ids.has(item.numeroControlePNCP)) throw new Error('Registro de oportunidade inválido.'); ids.add(item.numeroControlePNCP); }
+    opportunityState.items = items; opportunityState.loaded = true; opportunityState.at = d.atualizadoEm; opportunityState.failures = 0; renderOpportunities();
+  } catch (e) {
+    opportunityState.error = true;
+    if (opportunityState.loaded) renderOpportunities();
+    const message = opportunityState.loaded ? 'Não foi possível recarregar as oportunidades. Mantida a última base recebida.' : 'A base de oportunidades ainda não foi publicada ou não pôde ser carregada. Tente novamente mais tarde.';
+    $('opportunityStatus').textContent = message; if (typeof uiFeedback === 'function') uiFeedback('opportunityStatus', message, () => consultarOportunidades(true));
+  } finally { clearTimeout(timer); opportunityState.busy = false; $('opportunityReload').disabled = false; if (typeof uiBusy === 'function') uiBusy('opportunityFilters', 'opportunityCards', false); if (typeof uiRefreshOpportunities === 'function') uiRefreshOpportunities(); if (typeof renderDashboard === 'function') renderDashboard(); }
 }
 function pcaFillYears() {
   const select = $('pcaYear'), current = new Date().getFullYear(), old = select.value || String(current); select.replaceChildren();
@@ -497,3 +495,6 @@ function iniciarUsabilidadePortal() {
   Object.assign(globalThis, { uiFocusResults, uiClearFeedback, uiFeedback, uiRange, uiExpiry, uiBindAction, uiPager, uiBusy, uiCatalogSnapshot, uiChips, uiRefreshCatalog, uiRefreshExternal, uiExternalDirty, uiRefreshOpportunities, uiRefreshHistory, uiCloseMenu, uiInstallHeader, uiInstallFilters });
 }
 document.addEventListener('DOMContentLoaded', iniciarUsabilidadePortal, { once: true });
+
+// Atualiza prazos locais; não consulta a API nem o JSON automaticamente.
+setInterval(() => { if (opportunityState.loaded && !opportunityState.busy) { if (state.view === 'oportunidades') renderOpportunities(); if (state.view === 'inicio' && typeof renderDashboard === 'function') renderDashboard(); } }, 60000);
