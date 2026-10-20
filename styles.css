@@ -4629,3 +4629,40 @@ body.has-published-data #notice:not(.warning):not(.error):not(.query-loading):no
     transition: none
   }
 }
+
+/* Ações dos cards: um único bloco ancorado no rodapé, sem margens automáticas individuais. */
+.card>.card-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  margin-top: auto;
+  padding-top: 0;
+  flex-shrink: 0
+}
+
+.card .card-actions>a,
+.card .card-actions>button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  flex: 0 0 auto;
+  min-height: 44px;
+  max-width: 100%;
+  margin: 0;
+  line-height: 1.4;
+  padding: 10px 14px;
+  text-align: center;
+  white-space: normal
+}
+
+@media(max-width:700px) {
+
+  .card .card-actions>a,
+  .card .card-actions>button {
+    width: 100%;
+    align-self: stretch
+  }
+}
