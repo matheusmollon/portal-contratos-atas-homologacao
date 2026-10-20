@@ -6,7 +6,7 @@
     <base target="_top">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="./styles.css?v=20261019-interface1">
+    <link rel="stylesheet" href="./styles.css?v=20261020-oportunidades1">
 </head>
 
 <body data-tela="inicio">
@@ -346,11 +346,11 @@
         </section>
         <section id="opportunities" hidden>
             <div class="heading">
-                <div><span class="eyebrow">CONSULTA DIRETA AO PNCP</span>
+                <div><span class="eyebrow">OPORTUNIDADES PUBLICADAS</span>
                     <h1>Oportunidades</h1>
                     <p>Dispensas, pregões e concorrências eletrônicas com recebimento de propostas aberto ou programado
                         nos campi da Regional Norte.</p>
-                </div><button type="button" id="opportunityReload" class="secondary">Atualizar consulta</button>
+                </div><button type="button" id="opportunityReload" class="secondary">Recarregar oportunidades</button>
             </div>
             <form id="opportunityFilters" class="filters opportunity-filters">
                 <div class="field grow"><label for="opportunityQuery">Palavra-chave</label><input id="opportunityQuery"
@@ -369,12 +369,14 @@
                     </select></div><button type="submit" class="primary">Filtrar</button><button type="button"
                     id="opportunityClear" class="secondary">Limpar</button>
             </form>
+            <p id="opportunityUpdated" class="external-scope" role="status">Aguardando a base de oportunidades.</p>
             <p class="external-scope"><strong>Filtros da fonte:</strong> UTFPR · UASGs 153176, 150148 e 150149 · somente
                 oportunidades com propostas abertas ou com abertura futura.</p>
-            <p class="pncp-notice external-pncp-notice">Esta consulta depende diretamente do PNCP. Os prazos e
-                documentos devem ser confirmados no sistema oficial antes da participação.</p>
-            <div id="opportunityStatus" class="result-count" role="status" aria-live="polite">Aguardando consulta ao
-                PNCP.</div>
+            <p class="pncp-notice external-pncp-notice">As oportunidades são coletadas periodicamente no PNCP e
+                publicadas neste portal. A lista pode não refletir alterações recentes. Confirme prazos e documentos na
+                fonte oficial antes da participação.</p>
+            <div id="opportunityStatus" class="result-count" role="status" aria-live="polite">Aguardando a base
+                publicada.</div>
             <div id="opportunityCards" class="cards opportunity-cards"></div>
             <div class="pagination"><button id="opportunityPrev" class="secondary" disabled>← Anterior</button><span
                     id="opportunityPageInfo"></span><button id="opportunityNext" class="secondary" disabled>Próxima
@@ -446,9 +448,9 @@
             Confira as informações nos documentos oficiais antes de utilizá-las em uma demanda.</p>
         <button id="closeHomologacao" type="button" class="primary" autofocus>Entendi, acessar o portal</button>
     </dialog>
-    <script src="./app.js?v=20261019-interface1" defer></script>
-    <script src="./consultas-pncp.js?v=20261019-interface2" defer></script>
-    <script src="./painel-inicial.js?v=20261019-interface1" defer></script>
+    <script src="./app.js?v=20261020-oportunidades1" defer></script>
+    <script src="./consultas-pncp.js?v=20261020-oportunidades1" defer></script>
+    <script src="./painel-inicial.js?v=20261020-oportunidades1" defer></script>
 </body>
 
 </html>
