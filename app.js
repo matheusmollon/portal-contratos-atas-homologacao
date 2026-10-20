@@ -173,9 +173,11 @@ async function consultarAtasExternas(page, options = {}) {
   return success;
 }
 
+function opportunitySourceUrl(item) {
+  const raw = String(item.linkSistemaOrigem || '').trim(); try { const u = new URL(raw); if (u.protocol === 'https:' && !u.username && !u.password && (!u.port || u.port === '443') && (/^(?:[a-z0-9-]+\.)*compras(?:net)?\.gov\.br$/i.test(u.hostname) || u.hostname.toLowerCase() === 'cnetmobile.estaleiro.serpro.gov.br')) return u.href; } catch { } return '';
+}
 function opportunityUrl(item) {
-  const raw = String(item.linkSistemaOrigem || '').trim();
-  if (/^https:\/\/[^\s]+$/i.test(raw)) return raw;
+  const source = opportunitySourceUrl(item); if (source) return source;
   const id = String(item.numeroControlePNCP || ''), m = id.match(/^(\d{14})-1-(\d{6})\/(\d{4})$/);
   return m ? 'https://pncp.gov.br/app/editais/' + m[1] + '/' + m[3] + '/' + Number(m[2]) : '';
 }
@@ -187,9 +189,9 @@ function opportunitySituation(item) {
 }
 function opportunityUnit(item) { return String(item.unidadeOrgao?.codigoUnidade || ''); }
 function opportunitySessionDate(item) {
-  const end = Date.parse(item.dataEncerramentoProposta), source = String(item.linkSistemaOrigem || '');
-  if (!Number.isFinite(end) || !/compras(?:net)?|cnetmobile/i.test(source)) return 'Não informada separadamente pelo PNCP';
-  return dateTime(new Date(end + 60000).toISOString()) + ' · previsão';
+  const end = Date.parse(item.dataEncerramentoProposta), source = opportunitySourceUrl(item);
+  if (!Number.isFinite(end) || !source) return 'Previsão indisponível; confira no sistema de origem';
+  return dateTime(new Date(end + 60000).toISOString()) + ' · estimativa';
 }
 function filteredOpportunities() {
   const q = norm($('opportunityQuery').value.trim()), ug = $('opportunityCampus').value, mod = $('opportunityModality').value;
@@ -202,7 +204,7 @@ function renderOpportunities() {
     const card = el('article', undefined, 'card opportunity-card'), top = el('div', undefined, 'card-top'), status = opportunitySituation(item), url = opportunityUrl(item);
     top.append(el('h2', portalProcurementTitle(item)), el('span', status, 'badge ' + (status === 'Recebendo propostas' ? 'live' : 'soon'))); card.append(top, el('p', item.objetoCompra || 'Objeto não informado pelo PNCP.', 'object'));
     const dl = el('dl'); field(dl, 'UNIDADE', ((item.unidadeOrgao?.nomeUnidade || 'Não informada') + (opportunityUnit(item) ? ' · ' + opportunityUnit(item) : ''))); campoProcesso(dl, item.processo); field(dl, 'VALOR ESTIMADO', money(item.valorTotalEstimado)); field(dl, 'INÍCIO DO RECEBIMENTO DAS PROPOSTAS', dateTime(item.dataAberturaProposta)); field(dl, 'FIM DO RECEBIMENTO DAS PROPOSTAS', dateTime(item.dataEncerramentoProposta)); field(dl, 'DATA PREVISTA PARA ABERTURA DA SESSÃO PÚBLICA', opportunitySessionDate(item)); field(dl, 'MODO DE DISPUTA', item.modoDisputaNome); card.append(dl, el('p', 'A abertura da sessão é uma previsão calculada para o minuto seguinte ao encerramento das propostas no Compras.gov.br. Confirme o horário no edital e no sistema oficial.', 'session-hint'));
-    if (url) { const a = el('a', 'Consultar ou participar ↗', 'primary opportunity-open'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; card.append(a); } $('opportunityCards').append(card);
+    if (url) { const a = el('a', opportunitySourceUrl(item) ? 'Consultar ou participar ↗' : 'Consultar no PNCP ↗', 'primary opportunity-open'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; card.append(a); } $('opportunityCards').append(card);
   }
   if (!items.length) $('opportunityCards').append(el('p', 'Nenhuma oportunidade aberta ou programada foi encontrada para os filtros selecionados.', 'empty'));
   opportunityState.filteredTotal = items.length; opportunityState.pages = pages;
