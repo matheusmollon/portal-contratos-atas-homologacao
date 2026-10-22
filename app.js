@@ -57,9 +57,14 @@ function linkTransparenciaContrato(id) {
   const value = String(id ?? '').trim();
   return /^\d+$/.test(value) ? 'https://contratos.comprasnet.gov.br/transparencia/contratos/' + value : '';
 }
-function campoProcesso(dl, value) {
+function processoSeiDireto(value) {
+  try { const raw = String(value || '').trim(); if (!raw || /[\\\s]/.test(raw)) return ''; const u = new URL(raw); if (u.protocol !== 'https:' || u.hostname !== 'sei.utfpr.edu.br' || u.username || u.password || (u.port && u.port !== '443') || u.pathname === '/') return ''; return u.href; } catch { return ''; }
+}
+function campoProcesso(dl, value, linkProcessoEletronico) {
   const raw = String(value || '').trim(); if (!raw) { field(dl, 'Processo administrativo', 'Não informado'); return; }
   const digits = raw.replace(/\D/g, ''), numero = digits.length === 17 ? digits.slice(0, 5) + '.' + digits.slice(5, 11) + '/' + digits.slice(11, 15) + '-' + digits.slice(15) : raw;
+  const direto = processoSeiDireto(linkProcessoEletronico);
+  if (direto) { const wrap = el('div'), dd = el('dd'), a = el('a', numero + ' ↗'); a.href = direto; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.setAttribute('aria-label', 'Abrir processo ' + numero + ' diretamente no SEI em outra aba'); dd.append(a, el('p', 'Clique no número para abrir o processo no SEI em outra aba.', 'hint')); wrap.append(el('dt', 'Processo administrativo'), dd); dl.append(wrap); return; }
   const wrap = el('div'), dd = el('dd'), a = el('a', numero + ' ↗'), hint = el('p', 'Clique no número para copiar e abrir a consulta pública do SEI em outra aba. Depois, cole no campo de pesquisa.', 'hint');
   a.href = SEI_CONSULTA_PUBLICA; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.setAttribute('aria-label', 'Copiar processo ' + numero + ' e abrir consulta pública do SEI em outra aba'); hint.setAttribute('role', 'status');
   a.addEventListener('click', () => {
