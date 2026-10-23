@@ -4666,3 +4666,612 @@ body.has-published-data #notice:not(.warning):not(.error):not(.query-loading):no
     align-self: stretch
   }
 }
+
+/* Central ampliada — revisão visual 20261023-central5-visual2. */
+dialog.contract-center {
+  width: min(1180px, calc(100vw - 48px));
+  max-width: 1180px;
+  max-height: 92dvh;
+  padding: 28px;
+  border: 1px solid #e1e6ec;
+  border-radius: 16px;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  background: #fff
+}
+
+.contract-center .dialog-top {
+  gap: 20px;
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+  align-items: flex-start
+}
+
+.contract-center .dialog-top h2 {
+  font-size: 26px;
+  line-height: 1.25;
+  overflow-wrap: anywhere
+}
+
+.contract-center .dialog-top button {
+  flex-shrink: 0;
+  min-height: 44px
+}
+
+.c5-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  margin: 0 0 24px;
+  background: #f4f6f8;
+  border: 1px solid #e0e5eb;
+  border-radius: 11px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scroll-padding-inline: 8px
+}
+
+.c5-tabs button {
+  flex: 1 0 auto;
+  min-width: 88px;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: #536171;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background .15s, color .15s
+}
+
+.c5-tabs button:hover {
+  background: #e9eef3;
+  color: #202b37
+}
+
+.c5-tabs button[aria-selected=true] {
+  background: #fff;
+  border-color: #dce2e8;
+  box-shadow: 0 2px 4px #14263c0a, inset 0 -3px #ffcb05;
+  color: #18232e
+}
+
+.c5-tabs button:focus-visible {
+  outline: 3px solid #275aa7;
+  outline-offset: -3px
+}
+
+.contract-center [role=tabpanel][hidden] {
+  display: none !important
+}
+
+.contract-center [role=tabpanel] {
+  min-width: 0
+}
+
+.c5-list {
+  display: grid;
+  gap: 14px;
+  min-width: 0
+}
+
+.c5-card {
+  min-width: 0;
+  border: 1px solid #dce3eb;
+  border-radius: 11px;
+  background: #fff;
+  overflow: hidden;
+  transition: border-color .15s
+}
+
+.c5-card>summary {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 18px;
+  cursor: pointer;
+  list-style: none;
+  min-height: 76px;
+  background: #fff
+}
+
+.c5-card>summary::-webkit-details-marker {
+  display: none
+}
+
+.c5-card>summary::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid #68798b;
+  border-bottom: 2px solid #68798b;
+  transform: rotate(-45deg);
+  transition: transform .15s;
+  justify-self: center
+}
+
+.c5-card[open]>summary::before {
+  transform: rotate(45deg)
+}
+
+.c5-card>summary:hover {
+  background: #fafbfd
+}
+
+.c5-card>summary:focus-visible,
+.c5-card-body>details>summary:focus-visible {
+  outline: 3px solid #275aa7;
+  outline-offset: -3px
+}
+
+.c5-card>summary>div {
+  min-width: 0
+}
+
+.c5-card>summary strong {
+  font-size: 15px;
+  line-height: 1.45;
+  overflow-wrap: anywhere
+}
+
+.c5-card>summary span {
+  display: block;
+  color: #5c6a79;
+  font-size: 13px;
+  line-height: 1.55;
+  margin-top: 5px;
+  overflow-wrap: anywhere
+}
+
+.c5-card-meta {
+  text-align: right;
+  max-width: 280px;
+  padding: 7px 11px;
+  background: #f2f6fa;
+  border: 1px solid #e5ebf1;
+  border-radius: 7px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere
+}
+
+.c5-card-meta:empty {
+  display: none
+}
+
+.c5-card-meta strong {
+  font-size: 14px !important;
+  color: #263d52
+}
+
+.c5-card[open] {
+  border-color: #bacbdb
+}
+
+.c5-card[open]>summary {
+  background: #f6f9fc;
+  border-bottom: 1px solid #e0e7ee
+}
+
+.c5-card-body {
+  display: grid;
+  gap: 20px;
+  padding: 22px;
+  min-width: 0;
+  overflow-wrap: anywhere
+}
+
+.c5-card-body>p,
+.c5-card-body>h4 {
+  margin: 0
+}
+
+.c5-card-body h4 {
+  font-size: 15px;
+  color: #293b4b;
+  line-height: 1.5
+}
+
+.c5-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 12px;
+  min-width: 0
+}
+
+.c5-metric {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid #dfe9f1;
+  border-radius: 9px;
+  background: #f2f7fc
+}
+
+.c5-metric:first-child {
+  background: #fff9e9;
+  border-color: #efe4bf
+}
+
+.c5-metric:last-child {
+  background: #f1f8f3;
+  border-color: #deebe1
+}
+
+.c5-metric:only-child {
+  background: #f2f7fc;
+  border-color: #dfe9f1
+}
+
+.c5-metric span {
+  font-size: 12px;
+  color: #576577;
+  line-height: 1.5
+}
+
+.c5-metric strong {
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+  color: #233446;
+  overflow-wrap: anywhere
+}
+
+.c5-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 24px;
+  margin: 0 !important;
+  min-width: 0
+}
+
+.c5-fields>div {
+  padding: 13px 0;
+  border-bottom: 1px solid #edf0f4;
+  min-width: 0
+}
+
+.c5-fields dt {
+  font-size: 12px;
+  font-weight: 600;
+  color: #657384;
+  line-height: 1.5
+}
+
+.c5-fields dd {
+  margin: 5px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #223141;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums
+}
+
+.c5-description {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.75;
+  color: #3c4c5d;
+  font-size: 14px
+}
+
+.c5-filters {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 14px;
+  background: #f8fafc;
+  border: 1px solid #e3e9ef;
+  padding: 16px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  min-width: 0
+}
+
+.c5-filters .field {
+  flex: 1 1 180px;
+  min-width: 0;
+  gap: 8px
+}
+
+.c5-filters label {
+  font-size: 12px;
+  color: #48586a
+}
+
+.c5-filters input,
+.c5-filters select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 46px;
+  border-radius: 7px;
+  border-color: #cfd9e3
+}
+
+.c5-filters>button {
+  min-height: 46px
+}
+
+.c5-card-body>details {
+  padding: 0;
+  background: #fbfcfd;
+  border: 1px solid #e0e7ee;
+  border-radius: 9px;
+  min-width: 0;
+  overflow: hidden
+}
+
+.c5-card-body>details>summary {
+  min-height: 48px;
+  cursor: pointer;
+  padding: 14px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #304d65;
+  line-height: 1.5;
+  overflow-wrap: anywhere
+}
+
+.c5-card-body>details[open]>summary {
+  border-bottom: 1px solid #e4eaf0;
+  background: #f0f5fa
+}
+
+.c5-card-body>details>div {
+  padding: 16px;
+  min-width: 0
+}
+
+.c5-card-body>details .c5-card {
+  box-shadow: none
+}
+
+.c5-card-body>details .c5-metric strong {
+  font-size: 17px
+}
+
+.contract-center .external-scope {
+  background: #eef6fc;
+  color: #35556e;
+  border: 1px solid #d6e6f2;
+  border-left: 3px solid #7fa6c3;
+  padding: 13px 16px;
+  border-radius: 7px;
+  font-size: 13px;
+  line-height: 1.65;
+  margin: 0 0 16px
+}
+
+.c5-card-body .external-scope {
+  margin: 0
+}
+
+.c5-card-body .hint {
+  font-size: 12px;
+  line-height: 1.65;
+  color: #627185
+}
+
+.c5-stamp {
+  font-size: 12px;
+  border-top: 1px solid #e9edf2;
+  padding-top: 14px;
+  margin-top: 22px;
+  color: #6a7888
+}
+
+.contract-center .pagination {
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 22px
+}
+
+.contract-center .pagination button {
+  min-height: 44px
+}
+
+.c5-card-body .secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  max-width: 100%;
+  width: fit-content;
+  white-space: normal;
+  text-align: left;
+  line-height: 1.5;
+  border-color: #cfdbe5;
+  border-radius: 7px;
+  color: #31506b;
+  background: #fff;
+  overflow-wrap: anywhere
+}
+
+.c5-card-body a.secondary {
+  text-decoration: none
+}
+
+.c5-card-body .secondary:hover {
+  background: #eef5fb;
+  border-color: #9eb7cc
+}
+
+@media(max-width:900px) {
+  .c5-tabs button {
+    min-width: 84px;
+    padding: 10px 12px
+  }
+
+  .c5-card-meta {
+    max-width: 230px
+  }
+
+  .c5-card>summary {
+    gap: 10px
+  }
+}
+
+@media(max-width:700px) {
+  dialog.contract-center {
+    width: calc(100vw - 16px);
+    max-width: none;
+    max-height: 95dvh;
+    padding: 16px;
+    border-radius: 12px;
+    scrollbar-gutter: auto
+  }
+
+  .contract-center .dialog-top {
+    gap: 12px;
+    margin-bottom: 16px
+  }
+
+  .contract-center .dialog-top h2 {
+    font-size: 21px
+  }
+
+  .contract-center .dialog-top button {
+    padding: 8px 10px;
+    font-size: 13px
+  }
+
+  .c5-tabs {
+    gap: 4px;
+    margin-bottom: 18px;
+    padding: 5px
+  }
+
+  .c5-tabs button {
+    font-size: 13px;
+    min-width: 82px;
+    min-height: 44px;
+    padding: 10px 12px
+  }
+
+  .c5-card>summary {
+    grid-template-columns: 14px minmax(0, 1fr);
+    padding: 15px;
+    gap: 10px;
+    align-items: start
+  }
+
+  .c5-card>summary::before {
+    margin-top: 7px
+  }
+
+  .c5-card>summary strong {
+    font-size: 14px
+  }
+
+  .c5-card>summary span {
+    font-size: 12px
+  }
+
+  .c5-card-meta {
+    grid-column: 2;
+    max-width: 100%;
+    justify-self: start;
+    text-align: left;
+    padding: 6px 9px
+  }
+
+  .c5-card-body {
+    padding: 15px;
+    gap: 16px
+  }
+
+  .c5-metrics {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px
+  }
+
+  .c5-metric {
+    padding: 14px
+  }
+
+  .c5-metric strong {
+    font-size: 19px
+  }
+
+  .c5-fields {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 0
+  }
+
+  .c5-fields>div {
+    padding: 11px 0
+  }
+
+  .c5-filters {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    padding: 13px;
+    gap: 13px
+  }
+
+  .c5-filters .field {
+    width: 100%
+  }
+
+  .c5-filters input,
+  .c5-filters select {
+    font-size: 16px
+  }
+
+  .c5-filters>button {
+    width: 100%
+  }
+
+  .c5-card-body>details>summary {
+    padding: 12px
+  }
+
+  .c5-card-body>details>div {
+    padding: 12px
+  }
+
+  .c5-card-body .secondary {
+    width: 100%;
+    text-align: center
+  }
+
+  .contract-center .external-scope {
+    padding: 12px;
+    font-size: 12px
+  }
+
+  .contract-center .pagination {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px
+  }
+
+  .contract-center .pagination span {
+    grid-column: 1/-1;
+    grid-row: 1;
+    text-align: center
+  }
+
+  .contract-center .pagination button {
+    width: 100%;
+    padding: 9px
+  }
+
+  .c5-stamp {
+    line-height: 1.65
+  }
+}
+
+@media(prefers-reduced-motion:reduce) {
+
+  .c5-card,
+  .c5-card>summary::before,
+  .c5-tabs button {
+    transition: none
+  }
+}
