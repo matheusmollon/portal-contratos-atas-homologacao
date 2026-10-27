@@ -5275,3 +5275,583 @@ dialog.contract-center {
     transition: none
   }
 }
+
+/* Checkpoint 6 — configuração e prévia dos relatórios de contratos. */
+.contract-center .dialog-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px
+}
+
+.contract-center .dialog-top>div:first-child {
+  flex: 1;
+  min-width: 0
+}
+
+.c6-contract-actions {
+  flex: none
+}
+
+.c6-launch {
+  white-space: nowrap;
+  min-height: 44px
+}
+
+.c6-dialog {
+  width: min(1060px, calc(100vw - 40px));
+  max-width: none;
+  max-height: 92dvh;
+  border: 1px solid #dbe1e6;
+  border-radius: 14px;
+  background: #f7f8fa;
+  padding: 24px;
+  color: #222;
+  overscroll-behavior: contain
+}
+
+.c6-dialog::backdrop {
+  background: rgba(13, 20, 29, .66)
+}
+
+.c6-dialog [hidden] {
+  display: none !important
+}
+
+.c6-dialog * {
+  box-sizing: border-box
+}
+
+.c6-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px
+}
+
+.c6-top h2 {
+  margin: 5px 0;
+  font-size: 25px
+}
+
+.c6-top p {
+  margin: 6px 0 0
+}
+
+.c6-top>div {
+  min-width: 0
+}
+
+.c6-top>button {
+  flex: none;
+  min-height: 44px
+}
+
+.c6-dialog button:focus-visible,
+.c6-dialog input:focus-visible,
+.c6-dialog select:focus-visible {
+  outline: 3px solid #967300;
+  outline-offset: 3px
+}
+
+.c6-feedback {
+  font-size: 14px;
+  line-height: 1.6;
+  background: #fff9e7;
+  border: 1px solid #ecdfb0;
+  border-radius: 8px;
+  padding: 13px 16px;
+  margin: 20px 0;
+  overflow-wrap: anywhere
+}
+
+.c6-error {
+  background: #fff1ef;
+  border-color: #e6a29d;
+  border-left: 4px solid #b62d26;
+  color: #8f2420
+}
+
+.c6-section {
+  padding: 20px;
+  margin: 16px 0;
+  background: #fff;
+  border: 1px solid #dce2e7;
+  border-radius: 10px;
+  min-width: 0
+}
+
+.c6-section h3 {
+  font-size: 16px;
+  margin: 0 0 18px
+}
+
+.c6-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px
+}
+
+.c6-dialog .field {
+  min-width: 0;
+  max-width: 100%
+}
+
+.c6-dialog input:not([type=checkbox]),
+.c6-dialog select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  font-size: 14px;
+  background: #fff
+}
+
+.c6-dialog input[type=checkbox] {
+  width: 18px;
+  height: 18px;
+  accent-color: #353535;
+  flex: none
+}
+
+.c6-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 24px
+}
+
+.c6-check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+  line-height: 1.5;
+  cursor: pointer
+}
+
+.c6-check input {
+  margin: 0
+}
+
+.c6-tabs {
+  display: flex;
+  gap: 12px;
+  border-bottom: 1px solid #ddd;
+  margin: 0 0 18px
+}
+
+.c6-tabs button {
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  min-height: 44px
+}
+
+.c6-tabs button.active {
+  border-bottom-color: #ffcb05;
+  font-weight: 700
+}
+
+.c6-toolbar {
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  align-items: center;
+  margin: 16px 0
+}
+
+.c6-toolbar .field {
+  flex: 0 1 330px
+}
+
+.c6-records {
+  border: 1px solid #e0e5e9;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 14px 0
+}
+
+.c6-record {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) minmax(100px, auto);
+  align-items: center;
+  gap: 14px;
+  padding: 17px;
+  background: white;
+  border-bottom: 1px solid #e9edf0;
+  cursor: pointer
+}
+
+.c6-record:last-child {
+  border-bottom: 0
+}
+
+.c6-record:has(input:checked) {
+  background: #fffdf4
+}
+
+.c6-record strong {
+  font-size: 14px
+}
+
+.c6-record span strong,
+.c6-record small {
+  display: block
+}
+
+.c6-record small {
+  font-size: 12px;
+  color: #627080;
+  font-weight: 400;
+  margin-top: 5px;
+  line-height: 1.6
+}
+
+.c6-record>strong {
+  text-align: right
+}
+
+.c6-records>p {
+  padding: 16px
+}
+
+.c6-footer {
+  position: sticky;
+  bottom: -24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border-top: 1px solid #dce2e7;
+  background: #fff;
+  padding: 18px 24px;
+  margin: 20px -24px -24px;
+  box-shadow: 0 -4px 18px #18233006
+}
+
+.c6-footer>div:first-child {
+  min-width: 0
+}
+
+.c6-footer strong,
+.c6-footer small {
+  display: block
+}
+
+.c6-footer strong {
+  font-size: 14px
+}
+
+.c6-footer small {
+  font-size: 12px;
+  color: #627080;
+  margin-top: 5px
+}
+
+.c6-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end
+}
+
+.c6-actions button {
+  min-height: 44px
+}
+
+.c6-config[inert] {
+  opacity: .65
+}
+
+.c6-preview {
+  background: white;
+  border: 1px solid #e0e4e7;
+  border-radius: 8px;
+  padding: 24px
+}
+
+.c6-report {
+  color: #242424;
+  font-size: 14px;
+  line-height: 1.6
+}
+
+.c6-report h1 {
+  font-size: 28px;
+  margin: 22px 0 12px
+}
+
+.c6-report h2 {
+  font-size: 20px;
+  margin: 28px 0 16px
+}
+
+.c6-report h3 {
+  font-size: 16px
+}
+
+.c6-report-brand {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  border-bottom: 3px solid #ffcb05;
+  padding-bottom: 16px
+}
+
+.c6-report-brand svg {
+  width: 140px;
+  height: 56px;
+  flex: none
+}
+
+.c6-report-brand span {
+  font-size: 10px;
+  color: #666;
+  text-align: right
+}
+
+.c6-values {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px 24px
+}
+
+.c6-values>div {
+  min-width: 0
+}
+
+.c6-values dt {
+  font-size: 12px;
+  color: #5e6771;
+  font-weight: 600
+}
+
+.c6-values dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere
+}
+
+.c6-report-card {
+  border: 1px solid #dce2e7;
+  border-radius: 8px;
+  padding: 18px;
+  margin: 18px 0
+}
+
+.c6-report-card h3 {
+  margin: 0 0 16px
+}
+
+.c6-report-notice {
+  background: #fff9e7;
+  border-left: 3px solid #d9b74b;
+  padding: 14px;
+  font-size: 12px;
+  color: #695727
+}
+
+.c6-report-error {
+  background: #fff1ef;
+  border-left: 3px solid #b62d26;
+  padding: 14px;
+  color: #8f2420
+}
+
+.c6-table-wrap {
+  overflow: auto;
+  max-width: 100%
+}
+
+.c6-report table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 12px
+}
+
+.c6-report th {
+  text-align: left;
+  background: #f4f4f4;
+  border-bottom: 2px solid #ffcb05
+}
+
+.c6-report th,
+.c6-report td {
+  padding: 10px;
+  vertical-align: top;
+  overflow-wrap: anywhere
+}
+
+.c6-report td {
+  border-bottom: 1px solid #e4e7eb
+}
+
+.c6-source,
+.c6-report footer {
+  font-size: 12px;
+  color: #65717e
+}
+
+.c6-report footer {
+  border-top: 1px solid #ddd;
+  margin-top: 24px;
+  padding-top: 15px
+}
+
+.c6-print-frame {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  left: -10000px;
+  top: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none
+}
+
+@media(max-width:700px) {
+  .contract-center .dialog-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px
+  }
+
+  .contract-center .dialog-top>div:first-child {
+    grid-column: 1;
+    grid-row: 1
+  }
+
+  .contract-center .dialog-top>#closeDetail {
+    grid-column: 2;
+    grid-row: 1
+  }
+
+  .c6-contract-actions {
+    grid-column: 1/-1;
+    grid-row: 2
+  }
+
+  .c6-launch {
+    width: 100%
+  }
+
+  .c6-dialog {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    padding: 16px;
+    border-radius: 0;
+    border: 0
+  }
+
+  .c6-top h2 {
+    font-size: 21px
+  }
+
+  .c6-top>button {
+    padding: 8px;
+    font-size: 13px
+  }
+
+  .c6-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px
+  }
+
+  .c6-section {
+    padding: 16px
+  }
+
+  .c6-dialog input:not([type=checkbox]),
+  .c6-dialog select {
+    font-size: 16px
+  }
+
+  .c6-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px
+  }
+
+  .c6-toolbar .field {
+    flex: auto
+  }
+
+  .c6-checks {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 15px
+  }
+
+  .c6-record {
+    grid-template-columns: 20px minmax(0, 1fr);
+    padding: 14px;
+    gap: 12px
+  }
+
+  .c6-record>strong {
+    grid-column: 2;
+    text-align: left;
+    font-size: 13px
+  }
+
+  .c6-footer {
+    bottom: -16px;
+    margin: 18px -16px -16px;
+    padding: 14px 16px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px
+  }
+
+  .c6-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr
+  }
+
+  .c6-actions button {
+    width: 100%;
+    padding: 10px 8px;
+    font-size: 13px
+  }
+
+  .c6-preview {
+    padding: 14px
+  }
+
+  .c6-values {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px
+  }
+
+  .c6-report h1 {
+    font-size: 23px
+  }
+
+  .c6-report-brand svg {
+    width: 110px;
+    height: 45px
+  }
+
+  .c6-report-brand span {
+    font-size: 9px
+  }
+
+  .c6-report-card {
+    padding: 14px
+  }
+
+  .c6-dialog .pagination {
+    flex-wrap: wrap;
+    justify-content: center
+  }
+
+  .c6-dialog .pagination span {
+    order: -1;
+    width: 100%;
+    text-align: center
+  }
+}
