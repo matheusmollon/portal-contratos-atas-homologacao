@@ -339,6 +339,11 @@ function render() {
   $('pageInfo').textContent = 'Página ' + state.page + ' de ' + pages; $('prev').disabled = state.page === 1; $('next').disabled = state.page === pages;
 }
 function detail(row) {
+  // O cabeçalho é persistente: reinicie todas as ações antes de abrir outro registro.
+  // Preserve os nós do título e do fechamento, que já possuem referências/listeners.
+  const modalHead = $('detail').querySelector('.dialog-top');
+  const titleBlock = $('detailTitle').parentElement, closeButton = $('closeDetail');
+  modalHead.replaceChildren(titleBlock, closeButton);
   $('detailType').textContent = row.tipo === 'ata' ? 'ATA DE REGISTRO DE PREÇOS' : 'CONTRATO'; $('detailTitle').textContent = portalRecordTitle(row);
   const body = $('detailBody'); body.replaceChildren(badge(row), el('p', row.objeto, 'detail-object'));
   const dl = el('dl', undefined, 'detail-grid'); field(dl, 'Vigência', date(row.inicio) + ' a ' + date(row.fim)); field(dl, 'Valor', money(row.valor));
