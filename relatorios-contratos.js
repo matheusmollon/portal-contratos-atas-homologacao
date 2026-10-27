@@ -1,5 +1,4 @@
 'use strict';
-
 let c6Active = null;
 const c6Dialog = el('dialog', undefined, 'c6-dialog'); c6Dialog.id = 'contractReport'; c6Dialog.setAttribute('aria-labelledby', 'c6-title'); document.body.append(c6Dialog);
 const c6Text = v => v === null || v === undefined || String(v).trim() === '' ? 'Não informado pela fonte' : String(v);
