@@ -1,4 +1,5 @@
 'use strict';
+
 let c6Active = null;
 const c6Dialog = el('dialog', undefined, 'c6-dialog'); c6Dialog.id = 'contractReport'; c6Dialog.setAttribute('aria-labelledby', 'c6-title'); document.body.append(c6Dialog);
 const c6Text = v => v === null || v === undefined || String(v).trim() === '' ? 'Não informado pela fonte' : String(v);
@@ -121,4 +122,21 @@ function c6Print(s) {
     frame.onload = () => { try { frame.contentWindow.addEventListener('afterprint', () => frame.remove(), { once: true }); frame.contentWindow.focus(); frame.contentWindow.print(); } catch { c6Status(s, 'Não foi possível abrir a impressão. Tente novamente pelo navegador.', true); } }; frame.srcdoc = '<!doctype html>' + doc.documentElement.outerHTML; c6Dialog.append(frame); setTimeout(() => frame.remove(), 300000);
 }
 const C6_PRINT_CSS = `@page{size:A4;margin:16mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0;color:#242424;background:white;font:10pt/1.5 Arial,sans-serif}h1{font-size:22pt}h2{font-size:15pt;margin-top:22pt;break-after:avoid}h3{font-size:12pt;break-after:avoid}p,dd,td{overflow-wrap:anywhere}.c6-report-brand{display:flex;align-items:center;justify-content:space-between;gap:24px;border-bottom:3px solid #ffcb05;padding-bottom:15px}.c6-report-brand svg{width:140px;height:56px;flex:none}.utfpr-ink{fill:#171717}.utfpr-gold{fill:#ffcb05}.c6-report-brand span{font-size:8pt}.c6-values{display:grid;grid-template-columns:1fr 1fr;gap:10px 20px}.c6-values>div{break-inside:avoid;min-width:0}dt{font-weight:bold;font-size:9pt}dd{margin:3px 0 0;color:#444}.c6-report-card{border:1px solid #ddd;padding:12px;margin:16px 0}.c6-report-card h3{margin:0 0 12px}table{border-collapse:collapse;width:100%;font-size:9pt;margin:14px 0;table-layout:fixed}thead{display:table-header-group}tr{break-inside:avoid}th{text-align:left;background:#eee;border-bottom:2px solid #ffcb05}td,th{padding:8px;vertical-align:top;border-bottom:1px solid #ddd}td{white-space:normal}.c6-report-notice{padding:10px;background:#fff9e3;border-left:3px solid #d3b64e}.c6-report-error{padding:10px;background:#fff1f0;border-left:3px solid #b42c27}.c6-source,footer{font-size:8pt;color:#555}footer{border-top:1px solid #ddd;margin-top:20px;padding-top:12px}a{color:#333}.c6-table-wrap{overflow:visible}`;
-const c6InstallOriginal = c5Install; c5Install = function (row) { c6InstallOriginal(row); const launcher = c6Button('Gerar relatório', () => c6Open(row, session, launcher), 'primary c6-launch'); launcher.setAttribute('aria-haspopup', 'dialog'); launcher.setAttribute('aria-controls', 'contractReport'); const session = c5Session; const actions = el('div', undefined, 'c6-contract-actions'); actions.append(launcher); $('detail').querySelector('.dialog-top').insertBefore(actions, $('closeDetail')); };
+/* O cabeçalho do modal é reaproveitado: descarte ações da abertura anterior. */
+function c6RemoveLaunchers() {
+    const head = $('detail')?.querySelector('.dialog-top');
+    if (head) head.querySelectorAll('.c6-contract-actions,.c6-launch').forEach(node => node.remove());
+}
+const c6InstallOriginal = c5Install;
+c5Install = function (row) {
+    c6RemoveLaunchers(); c6InstallOriginal(row);
+    const session = c5Session;
+    const launcher = c6Button('Gerar relatório', () => c6Open(row, session, launcher), 'primary c6-launch');
+    launcher.setAttribute('aria-haspopup', 'dialog'); launcher.setAttribute('aria-controls', 'contractReport');
+    const actions = el('div', undefined, 'c6-contract-actions'); actions.append(launcher);
+    $('detail').querySelector('.dialog-top').insertBefore(actions, $('closeDetail'));
+};
+// Também remove a ação ao trocar de contrato para ata ou outra visualização.
+const c6OriginalDetail = detail;
+detail = function (row) { c6RemoveLaunchers(); return c6OriginalDetail(row); };
+$('detail').addEventListener('close', () => { if (!$('detail').open) c6RemoveLaunchers(); });
