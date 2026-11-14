@@ -1,5 +1,4 @@
 'use strict';
-// Checkpoint 2: consultas públicas isoladas da base consolidada.
 const cp2Cache = new Map();
 const historySection = el('section'); historySection.id = 'history'; historySection.hidden = true; historySection.append(el('span', 'CONSULTA DIRETA AO PNCP', 'eyebrow'), el('h1', 'Histórico de contratações'), el('p', 'Registros publicados no PNCP, incluindo contratações ainda em andamento. A cobertura não inclui necessariamente todo o histórico legado.'));
 const historyForm = el('form', undefined, 'filters'); historyForm.id = 'historyForm';
@@ -99,8 +98,8 @@ async function cp2History() {
         if (hit && Date.now() - hit.at < 300000) { history.metrics.cacheHits++; steps.set(ug, { received: 1, total: 1 }); receive(hit.items); finished++; display(); return; }
         let page = 1, pages = 1; do {
             if (signal.aborted) throw new DOMException('Cancelado', 'AbortError');
-            const p = new URLSearchParams({ dataInicial: start.replaceAll('-', ''), dataFinal: end.replaceAll('-', ''), codigoModalidadeContratacao: modality, cnpj: UTFPR_CNPJ, codigoUnidadeAdministrativa: ug, pagina: String(page), tamanhoPagina: '50' }); history.metrics.requests++;
-            const d = await cp2HistoryFetch('https://pncp.gov.br/api/consulta/v1/contratacoes/publicacao?' + p, signal); pages = Math.max(1, Number(d.totalPaginas)); steps.set(ug, { received: page, total: pages }); receive(d.data); page++;
+            const p = new URLSearchParams({ dataInicial: start.replaceAll('-', ''), dataFinal: end.replaceAll('-', ''), codigoModalidadeContratacao: modality, codigoUnidadeAdministrativa: ug, pagina: String(page) }); history.metrics.requests++;
+            const d = await cp2HistoryFetch(c5Api() + '/historico/contratacoes?' + p, signal); pages = Math.max(1, Number(d.totalPaginas)); steps.set(ug, { received: page, total: pages }); receive(d.data); page++;
             if (page <= pages) await cp2HistoryWait(350, signal);
         } while (page <= pages);
         if (historyUnitCache.size >= 36) historyUnitCache.delete(historyUnitCache.keys().next().value); historyUnitCache.set(cacheKey, { items: rows.slice(), at: Date.now() }); finished++; display();
