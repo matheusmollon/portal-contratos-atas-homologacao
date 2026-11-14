@@ -1,9 +1,10 @@
 'use strict';
+// Checkpoint 2: consultas públicas isoladas da base consolidada.
 const cp2Cache = new Map();
-const historySection = el('section'); historySection.id = 'history'; historySection.hidden = true; historySection.append(el('span', 'CONSULTA DIRETA AO PNCP', 'eyebrow'), el('h1', 'Histórico de contratações'), el('p', 'Registros publicados no PNCP, incluindo contratações ainda em andamento. A cobertura não inclui necessariamente todo o histórico legado.'));
+const historySection = el('section'); historySection.id = 'history'; historySection.hidden = true; historySection.append(el('span', 'HISTÓRICO · BASE DO COLETOR', 'eyebrow'), el('h1', 'Histórico de contratações'), el('p', 'Registros publicados no PNCP, incluindo contratações ainda em andamento. A cobertura não inclui necessariamente todo o histórico legado.'));
 const historyForm = el('form', undefined, 'filters'); historyForm.id = 'historyForm';
 function cp2Control(id, label, type, options) { const wrap = el('div', undefined, 'field'), lab = el('label', label); lab.htmlFor = id; const input = el(options ? 'select' : 'input'); input.id = id; if (options) options.forEach(([value, text]) => input.add(new Option(text, value))); else input.type = type; input.required = true; wrap.append(lab, input); historyForm.append(wrap); return input; }
-cp2Control('historyStart', 'Publicação a partir de', 'date'); cp2Control('historyEnd', 'Publicação até', 'date'); cp2Control('historyUnit', 'Unidade', null, [['153176', 'Regional Norte'], ['150148', 'Londrina'], ['150149', 'Apucarana']]); cp2Control('historyModality', 'Modalidade', null, [['6', 'Pregão eletrônico'], ['8', 'Dispensa'], ['4', 'Concorrência eletrônica'], ['7', 'Inexigibilidade'], ['5', 'Concorrência presencial']]); const historySearch = el('button', 'Consultar', 'primary'); historySearch.id = 'historySearch'; historySearch.type = 'submit'; historyForm.append(historySearch); historySection.append(historyForm, el('p', 'Consultas externas podem apresentar instabilidade. Documentos e resultados devem ser confirmados na fonte oficial.', 'external-scope'));
+cp2Control('historyStart', 'Publicação a partir de', 'date'); cp2Control('historyEnd', 'Publicação até', 'date'); cp2Control('historyUnit', 'Unidade', null, [['153176', 'Regional Norte'], ['150148', 'Londrina'], ['150149', 'Apucarana']]); cp2Control('historyModality', 'Modalidade', null, [['6', 'Pregão eletrônico'], ['8', 'Dispensa'], ['4', 'Concorrência eletrônica'], ['7', 'Inexigibilidade'], ['5', 'Concorrência presencial']]); const historySearch = el('button', 'Consultar', 'primary'); historySearch.id = 'historySearch'; historySearch.type = 'submit'; historyForm.append(historySearch); historySection.append(historyForm, el('p', 'Listagem atualizada pelo coletor. Itens, resultados e documentos são consultados sob demanda no PNCP e podem apresentar instabilidade.', 'external-scope'));
 const historyStatus = el('div', 'Selecione os filtros e clique em Consultar.', 'result-count'); historyStatus.id = 'historyStatus'; historyStatus.setAttribute('role', 'status'); const historyCards = el('div', undefined, 'cards'); historyCards.id = 'historyCards'; const historyPager = el('div', undefined, 'pagination'); for (const [id, text] of [['historyPrev', '← Anterior'], ['historyNext', 'Próxima →']]) { const b = el('button', text, 'secondary'); b.id = id; b.disabled = true; historyPager.append(b); } historySection.append(historyStatus, historyCards, historyPager); $('principal').append(historySection);
 const historyNav = el('button', 'Histórico'); historyNav.dataset.view = 'historico'; historyNav.onclick = () => navigate('historico'); document.querySelector('nav').append(historyNav);
 const contractOrderField = el('div', undefined, 'field'), contractOrderLabel = el('label', 'Ordenar contratos'), contractOrder = el('select'); contractOrder.id = 'contractOrder'; contractOrderLabel.htmlFor = 'contractOrder';[['expiryAsc', 'Vencimento mais próximo'], ['expiryDesc', 'Vencimento mais distante'], ['numberAsc', 'Número: crescente'], ['numberDesc', 'Número: decrescente'], ['yearDesc', 'Ano: mais recente primeiro'], ['yearAsc', 'Ano: mais antigo primeiro']].forEach(([v, t]) => contractOrder.add(new Option(t, v))); contractOrder.onchange = () => { state.page = 1; render(); }; contractOrderField.append(contractOrderLabel, contractOrder); $('filters').append(contractOrderField); contractOrderField.hidden = state.view !== 'contratos';
@@ -25,7 +26,7 @@ function cp2Documents(parent, url) { const section = el('section', undefined, 'c
 function cp2Results(parent, url) { const button = el('button', 'Ver resultado publicado', 'secondary'), out = el('div', undefined, 'cp2-results'); parent.append(button, out); button.addEventListener('click', async () => { button.disabled = true; out.textContent = 'Consultando resultado…'; try { const data = await cp2Get(url), results = Array.isArray(data) ? data : []; out.replaceChildren(); if (!results.length) out.append(el('p', 'Nenhum resultado retornado pela fonte oficial.', 'hint')); results.forEach(r => { const dl = el('dl', undefined, 'detail-grid'); field(dl, 'Fornecedor', r.nomeRazaoSocialFornecedor); field(dl, 'CNPJ/CPF', r.niFornecedor); field(dl, 'Quantidade homologada', qty(r.quantidadeHomologada)); field(dl, 'Valor unitário homologado', money(r.valorUnitarioHomologado)); field(dl, 'Valor total homologado', money(r.valorTotalHomologado)); field(dl, 'Situação do resultado', r.situacaoCompraItemResultadoNome); out.append(dl); }); } catch { out.textContent = 'Resultado temporariamente indisponível. Tente novamente.'; } finally { button.disabled = false; } }); }
 async function cp2Open(item) {
     const ref = cp2Ref(item); if (!ref) return; const body = $('detailBody'); body.replaceChildren(); $('detailType').textContent = 'CONTRATAÇÃO · PNCP'; $('detailTitle').textContent = portalProcurementTitle(item);
-    body.append(el('p', item.objetoCompra || 'Objeto não informado', 'detail-object')); const dl = el('dl', undefined, 'detail-grid'); campoProcesso(dl, item.processo, item.linkProcessoEletronico); field(dl, 'Unidade', item.unidadeOrgao?.nomeUnidade); field(dl, 'Situação publicada na fonte', item.situacaoCompraNome); field(dl, 'Publicação no PNCP', dateTime(item.dataPublicacaoPncp)); field(dl, 'Início das propostas', dateTime(item.dataAberturaProposta)); field(dl, 'Fim das propostas', dateTime(item.dataEncerramentoProposta)); field(dl, 'Abertura prevista da sessão pública', opportunitySessionDate(item)); body.append(dl, el('p', 'A situação publicada não representa acompanhamento ao vivo da sessão. Consulte a disputa e os lances no sistema de origem.', 'hint'));
+    body.append(el('p', item.objetoCompra || 'Objeto não informado', 'detail-object')); if (item._historicoAtualizadoEm) body.append(el('p', 'Dados básicos coletados em ' + new Date(item._historicoAtualizadoEm).toLocaleString('pt-BR') + '. Itens, resultados e documentos são consultados diretamente no PNCP.', 'hint')); const dl = el('dl', undefined, 'detail-grid'); campoProcesso(dl, item.processo, item.linkProcessoEletronico); field(dl, 'Unidade', item.unidadeOrgao?.nomeUnidade); field(dl, 'Situação publicada na fonte', item.situacaoCompraNome); field(dl, 'Publicação no PNCP', dateTime(item.dataPublicacaoPncp)); field(dl, 'Início das propostas', dateTime(item.dataAberturaProposta)); field(dl, 'Fim das propostas', dateTime(item.dataEncerramentoProposta)); field(dl, 'Abertura prevista da sessão pública', opportunitySessionDate(item)); body.append(dl, el('p', 'A situação publicada não representa acompanhamento ao vivo da sessão. Consulte a disputa e os lances no sistema de origem.', 'hint'));
     const links = el('div', undefined, 'links'); cp2SafeLink(links, 'https://pncp.gov.br/app/editais/' + ref.cnpj + '/' + ref.year + '/' + ref.seq, 'Abrir no PNCP ↗'); const compras = opportunitySourceUrl(item); if (compras) cp2SafeLink(links, compras, 'Abrir no Compras.gov.br ↗'); else if (item.linkSistemaOrigem) cp2SafeLink(links, item.linkSistemaOrigem, 'Abrir sistema de origem ↗'); body.append(links); if (compras) body.append(el('p', 'Abertura da sessão estimada para um minuto após o fim das propostas. Confirme o horário, os lances, propostas, impugnações e demais informações no Compras.gov.br.', 'session-hint')); const base = cp2Base(ref); cp2Documents(body, base + '/arquivos'); const items = el('section', undefined, 'cp2-items'); items.append(el('h3', 'Itens da contratação')); const content = el('div'); items.append(content); body.append(items); $('detail').showModal();
     let page = 1, busy = false; const size = 20;
     async function draw(target = page, scroll = false) {
@@ -54,107 +55,68 @@ function cp2RenderHistory() {
     for (const item of items.slice((history.page - 1) * history.size, history.page * history.size)) { const card = el('article', undefined, 'card'); card.append(el('h2', portalProcurementTitle(item)), el('p', item.objetoCompra)); const dl = el('dl'); field(dl, 'Situação publicada', item.situacaoCompraNome); field(dl, 'Publicação', dateTime(item.dataPublicacaoPncp)); field(dl, 'Unidade', item.unidadeOrgao?.nomeUnidade); card.append(dl); const b = el('button', 'Ver itens, resultados e documentos', 'secondary'); b.onclick = () => cp2Open(item); const actions = el('div', undefined, 'card-actions'); actions.append(b); card.append(actions); $('historyCards').append(card); }
     if (!items.length) $('historyCards').append(el('p', history.complete ? 'Nenhum objeto corresponde à busca nos registros consultados.' : 'Nenhuma correspondência nos dados recebidos. A consulta está incompleta.', 'empty'));
     history.filteredTotal = items.length; history.pages = pages;
-    $('historyStatus').textContent = (history.busy ? 'Consulta em andamento — resultados parciais' : history.complete ? 'Consulta concluída' : 'Carregamento parcial — há páginas pendentes') + ' · ' + items.length + ' resultado(s) em ' + history.items.length + ' registro(s) carregados · Página ' + history.page + ' de ' + pages + ' · Consulta em ' + new Date(history.at).toLocaleString('pt-BR'); $('historyPrev').disabled = history.page <= 1; $('historyNext').disabled = history.page >= pages;
+    $('historyStatus').textContent = (history.busy ? 'Consulta em andamento — resultados parciais' : history.complete ? 'Consulta concluída' : 'Carregamento parcial — há páginas pendentes') + ' · ' + items.length + ' resultado(s) em ' + history.items.length + ' registro(s) carregados · Página ' + history.page + ' de ' + pages + ' · Base atualizada em ' + new Date(history.at).toLocaleString('pt-BR'); $('historyPrev').disabled = history.page <= 1; $('historyNext').disabled = history.page >= pages; if (history.coverageNote) $('historyStatus').textContent += ' · ' + history.coverageNote;
 }
 historyObjectInput.addEventListener('input', () => { history.page = 1; cp2RenderHistory(); });
-function cp2HistoryProgress(units, steps, done = false, message = '') {
-    let box = $('historyProgress');
-    if (!box) {
-        const css = el('style'); css.textContent = '#historyProgress{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:8px 14px;margin:14px 0;padding:16px 20px;border:1px solid #efdfaa;border-radius:10px;background:#fffbee;color:#604b18;font-size:.9rem;line-height:1.6}#historyProgress[hidden]{display:none}#historyProgressBar{grid-column:2;width:100%;height:3px;border:0;border-radius:3px;overflow:hidden;background:#eee6cb;accent-color:#b89b45;appearance:none}#historyProgressBar::-webkit-progress-bar{background:#eee6cb;border-radius:3px}#historyProgressBar::-webkit-progress-value{background:#b89b45;border-radius:3px}#historyProgressBar::-moz-progress-bar{background:#b89b45;border-radius:3px}#historyProgress .history-spinner{width:24px;height:24px;border:3px solid #e9dfb8;border-bottom-color:#a68415;border-radius:50%;animation:history-spin .9s linear infinite;flex:none}@keyframes history-spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){#historyProgress .history-spinner{animation:none}}'; document.head.append(css);
-        box = el('div'); box.id = 'historyProgress'; box.setAttribute('role', 'status'); box.setAttribute('aria-live', 'polite'); const spinner = el('span', undefined, 'history-spinner'); spinner.setAttribute('aria-hidden', 'true'); const label = el('span', 'Consultando o PNCP…'); label.id = 'historyProgressLabel'; const bar = el('progress'); bar.id = 'historyProgressBar'; bar.max = 100; bar.setAttribute('aria-label', 'Progresso da consulta'); box.append(spinner, label, bar); $('historyStatus').before(box);
-    }
-    const loading = history.busy && !done; box.hidden = !loading; $('historyStatus').hidden = loading;
-    const bar = $('historyProgressBar'); if (done) bar.value = 100; else if (units.length && units.every(ug => steps.get(ug)?.total !== undefined)) { bar.value = Math.min(99, Math.floor(units.reduce((sum, ug) => { const st = steps.get(ug); return sum + Math.min(1, st.received / Math.max(1, st.total)); }, 0) / units.length * 100)); } else bar.removeAttribute('value');
-    const names = { '153176': 'Regional Norte', '150148': 'Londrina', '150149': 'Apucarana' };
-    $('historyProgressLabel').textContent = 'Consultando o PNCP… · ' + units.map(ug => { const st = steps.get(ug); return names[ug] + ': ' + (!st ? 'aguardando' : st.total === undefined ? 'consultando' : st.received >= st.total ? 'concluído' : 'consultando página ' + (st.received + 1) + ' de ' + st.total); }).join(' · ');
-}
-function cp2HistoryWait(ms, signal) { return new Promise((resolve, reject) => { if (signal.aborted) return reject(new DOMException('Cancelado', 'AbortError')); const abort = () => { clearTimeout(timer); reject(new DOMException('Cancelado', 'AbortError')); }; const timer = setTimeout(() => { signal.removeEventListener('abort', abort); resolve(); }, ms); signal.addEventListener('abort', abort, { once: true }); }); }
-// Cache por página: uma falha não obriga a repetir páginas já recebidas.
-const historyPageCache = new Map();
-async function cp2HistoryFetch(url, signal) {
-    const hit = historyPageCache.get(url);
-    if (hit && Date.now() - hit.at < 300000) { history.metrics.cacheHits++; return hit.data; }
+// A listagem lê exclusivamente os arquivos estáticos publicados pelo coletor.
+const historyAnnualCache = new Map();
+async function cp2HistoryStaticJson(path, signal) {
     const local = new AbortController(), abort = () => local.abort();
     if (signal.aborted) throw new DOMException('Cancelado', 'AbortError');
-    signal.addEventListener('abort', abort, { once: true }); const timer = setTimeout(abort, 75000);
-    try {
-        history.metrics.requests++;
-        const response = await fetch(url, { signal: local.signal, headers: { Accept: 'application/json' } });
-        if (!response.ok && response.status !== 204) {
-            const error = new Error('HTTP ' + response.status); error.retryable = [429, 502, 503, 504].includes(response.status);
-            const h = response.headers.get('Retry-After'); const delay = h === null ? 0 : (Number.isFinite(Number(h)) ? Number(h) * 1000 : Date.parse(h) - Date.now());
-            error.retryAt = Date.now() + Math.max(1000, Number.isFinite(delay) ? delay : 1000); throw error;
-        }
-        const d = response.status === 204 ? { data: [], totalPaginas: 0 } : await response.json();
-        if (!Array.isArray(d.data) || d.totalPaginas == null || !Number.isInteger(Number(d.totalPaginas)) || Number(d.totalPaginas) < 0) throw new Error('Resposta inválida');
-        if (signal.aborted) throw new DOMException('Cancelado', 'AbortError');
-        if (historyPageCache.size >= 240) historyPageCache.delete(historyPageCache.keys().next().value);
-        historyPageCache.set(url, { data: d, at: Date.now() }); return d;
-    } finally { clearTimeout(timer); signal.removeEventListener('abort', abort); }
+    signal.addEventListener('abort', abort, { once: true }); const timer = setTimeout(abort, 30000);
+    try { const r = await fetch(path, { signal: local.signal, cache: 'no-store', headers: { Accept: 'application/json' } }); if (!r.ok) throw new Error(r.status === 404 ? 'Histórico ainda não publicado pelo coletor.' : 'Arquivo do histórico: HTTP ' + r.status); return await r.json(); }
+    finally { clearTimeout(timer); signal.removeEventListener('abort', abort); }
 }
-const historySessions = new Map();
-function cp2HistoryControls() {
-    let more = $('historyLoadMore');
-    if (!more) { more = el('button', 'Carregar mais', 'secondary'); more.id = 'historyLoadMore'; more.type = 'button'; more.onclick = () => cp2History('more'); $('historyStatus').after(more); }
-    more.hidden = !history.loaded || history.complete || !!history.preserved; more.disabled = history.busy;
-    more.textContent = history.error ? 'Retomar páginas pendentes' : 'Carregar mais';
-    let hint = $('historyScope');
-    if (!hint) { hint = el('p', undefined, 'hint'); hint.id = 'historyScope'; $('historyStatus').after(hint); }
-    hint.textContent = history.complete ? 'Todas as páginas foram carregadas.' : 'Carregamento por etapas. A busca por objeto e a contagem abrangem apenas os registros recebidos. Use Carregar mais para continuar.';
-    hint.hidden = !history.loaded;
+function cp2HistoryManifest(m) {
+    if (!m || m.formato !== 1 || typeof m.versao !== 'string' || !Number.isFinite(Date.parse(m.atualizadoEm)) || !/^\d{4}-\d{2}-\d{2}$/.test(m.cobertura?.inicio) || !/^\d{4}-\d{2}-\d{2}$/.test(m.cobertura?.fim) || !Array.isArray(m.arquivos) || !Array.isArray(m.unidades) || !Array.isArray(m.modalidades) || !Number.isInteger(m.quantidade) || m.quantidade < 0) throw new Error('Índice do histórico inválido.');
+    const years = new Set(); let count = 0;
+    for (const f of m.arquivos) { if (!Number.isInteger(f.ano) || f.arquivo !== 'historico/' + f.ano + '.json' || years.has(f.ano) || !Number.isInteger(f.quantidade) || f.quantidade < 0) throw new Error('Arquivo anual inválido.'); years.add(f.ano); count += f.quantidade; }
+    if (count !== m.quantidade) throw new Error('Quantidade divergente no índice.'); return m;
 }
-async function cp2History(mode = 'search') {
+async function cp2History() {
     if (history.busy) return;
     const start = $('historyStart').value, end = $('historyEnd').value, days = (Date.parse(end) - Date.parse(start)) / 86400000 + 1;
     if (!start || !end || !Number.isFinite(days) || days < 1 || days > 366) { $('historyStatus').textContent = 'Selecione um período válido de até 366 dias.'; return; }
-    const unit = $('historyUnit').value, modality = $('historyModality').value, key = JSON.stringify([start, end, unit, modality]), units = unit === 'all' ? ['153176', '150148', '150149'] : [unit];
-    let session = historySessions.get(key);
-    // Uma sessão usa uma janela fixa de cinco minutos, sem prolongar páginas antigas.
-    if (!session || Date.now() - session.at >= 300000) { session = { at: Date.now(), units: new Map(units.map(ug => [ug, { pages: new Map(), total: null }])) }; if (historySessions.size >= 12) historySessions.delete(historySessions.keys().next().value); historySessions.set(key, session); }
-    history.busy = true; history.error = ''; history.preserved = false; history.loaded = true; history.complete = false; history.page = mode === 'more' ? history.page : 1; history.criteria = [start, end, unit, modality]; history.controller = new AbortController(); historyCancel.hidden = false;
-    history.metrics = { started: performance.now(), firstResultMs: null, totalMs: null, requests: 0, cacheHits: 0, retries: 0 };
-    const signal = history.controller.signal, steps = new Map();
-    const render = () => {
-        const seen = new Set(), rows = [];
-        for (const ug of units) {
-            const st = session.units.get(ug); steps.set(ug, { received: st.pages.size, ...(st.total === null ? {} : { total: st.total }) });
-            for (const [, d] of [...st.pages].sort((a, b) => a[0] - b[0])) for (const item of d.data) { const id = item.numeroControlePNCP || JSON.stringify([item.orgaoEntidade?.cnpj, item.anoCompra, item.sequencialCompra, item.unidadeOrgao?.codigoUnidade, item.numeroCompra]); if (!seen.has(id)) { seen.add(id); rows.push(item); } }
-        }
-        history.items = rows; history.at = session.at; history.complete = units.every(ug => { const st = session.units.get(ug); return st.total !== null && st.pages.size >= Math.max(1, st.total); });
-        if (rows.length && history.metrics.firstResultMs === null) history.metrics.firstResultMs = Math.round(performance.now() - history.metrics.started);
-        cp2RenderHistory(); cp2HistoryProgress(units, steps); cp2HistoryControls();
-    };
+    const unit = $('historyUnit').value, modality = $('historyModality').value, units = unit === 'all' ? ['153176', '150148', '150149'] : [unit];
+    history.busy = true; history.error = ''; history.controller = new AbortController(); historyCancel.hidden = false;
     for (const id of ['historyStart', 'historyEnd', 'historyUnit', 'historyModality', 'historySearch']) $(id).disabled = true;
-    render();
-    // Um lote busca somente a próxima página ausente de cada unidade.
-    const tasks = [];
-    for (const ug of units) { const st = session.units.get(ug); let page = 1; while (st.pages.has(page)) page++; if (st.total === null || page <= st.total) tasks.push({ ug, page }); }
-    const deferred = [], failures = [];
-    const run = async (task, retry = false) => {
-        if (signal.aborted) throw new DOMException('Cancelado', 'AbortError');
-        const p = new URLSearchParams({ dataInicial: start.replaceAll('-', ''), dataFinal: end.replaceAll('-', ''), codigoModalidadeContratacao: modality, codigoUnidadeAdministrativa: task.ug, pagina: String(task.page) });
-        try {
-            const d = await cp2HistoryFetch(c5Api() + '/historico/contratacoes?' + p, signal); const st = session.units.get(task.ug); const total = Number(d.totalPaginas);
-            if (st.total !== null && total !== st.total) { historyPageCache.delete(c5Api() + '/historico/contratacoes?' + p); throw new Error('A fonte mudou a quantidade de páginas. Refine o período ou refaça a consulta após cinco minutos.'); }
-            st.total = total; st.pages.set(task.page, d); render();
-        } catch (error) {
-            if (signal.aborted) throw error; const temporary = error.retryable || error.name === 'AbortError' || error instanceof TypeError;
-            if (!retry && temporary) deferred.push({ ...task, retryAt: error.retryAt || Date.now() + 1000 }); else failures.push(error);
-        }
-    };
-    const batch = async (list, retry = false) => { let next = 0; const runner = async () => { while (next < list.length) { if (signal.aborted) return; const task = list[next++]; if (retry) { await cp2HistoryWait(Math.max(0, task.retryAt - Date.now()), signal); history.metrics.retries++; } await run(task, retry); } }; await Promise.allSettled(Array.from({ length: Math.min(2, list.length) }, runner)); };
+    $('historyStatus').textContent = 'Carregando histórico publicado pelo coletor…';
+    const signal = history.controller.signal, started = performance.now();
     try {
-        await batch(tasks);
-        // Repetir uma vez, somente depois de todas as unidades terem sido atendidas.
-        if (!signal.aborted && deferred.length) await batch(deferred, true);
+        const m = cp2HistoryManifest(await cp2HistoryStaticJson('./historico.json?at=' + Date.now(), signal));
+        if (end < m.cobertura.inicio || start > m.cobertura.fim) throw new Error('Período fora da cobertura publicada: ' + m.cobertura.inicio + ' a ' + m.cobertura.fim + '. Ajuste as datas.');
+        const effectiveStart = start < m.cobertura.inicio ? m.cobertura.inicio : start, effectiveEnd = end > m.cobertura.fim ? m.cobertura.fim : end, coverageNote = start !== effectiveStart || end !== effectiveEnd ? 'Cobertura disponível neste período: ' + effectiveStart + ' a ' + effectiveEnd + '. As datas restantes ainda não constam da base publicada.' : '';
+        if (!m.modalidades.includes(modality) || units.some(ug => !m.unidades.includes(ug))) throw new Error('Unidade ou modalidade fora da cobertura do coletor.');
+        const files = []; for (let year = Number(effectiveStart.slice(0, 4)); year <= Number(effectiveEnd.slice(0, 4)); year++) { const file = m.arquivos.find(f => f.ano === year); if (!file) throw new Error('Ano ausente na base publicada.'); files.push(file); }
+        const batches = new Map(); let next = 0;
+        const runner = async () => {
+            while (next < files.length) {
+                const f = files[next++], key = m.versao + ':' + f.ano; let d = historyAnnualCache.get(key);
+                if (!d) {
+                    d = await cp2HistoryStaticJson('./' + f.arquivo + '?v=' + encodeURIComponent(m.versao) + '&at=' + Date.now(), signal);
+                    if (d.formato !== 1 || d.versao !== m.versao || d.ano !== f.ano || !Array.isArray(d.registros) || d.registros.length !== f.quantidade || d.registros.some(r => !r || !/^75101873000190-1-\d+\/\d{4}$/.test(r.numeroControlePNCP || '') || r.orgaoEntidade?.cnpj !== '75101873000190' || !m.unidades.includes(String(r.unidadeOrgao?.codigoUnidade)) || !m.modalidades.includes(String(r.modalidadeId)) || String(r.dataPublicacaoPncp || '').slice(0, 4) !== String(f.ano))) throw new Error('Arquivo anual incompatível ou publicação em atualização. Tente novamente.');
+                    if (historyAnnualCache.size >= 12) historyAnnualCache.delete(historyAnnualCache.keys().next().value); historyAnnualCache.set(key, d);
+                } batches.set(f.ano, d.registros);
+            }
+        };
+        const results = await Promise.allSettled(Array.from({ length: Math.min(2, files.length) }, runner));
         if (signal.aborted) throw new DOMException('Cancelado', 'AbortError');
-        if (failures.length) throw failures[0];
-    } catch (error) { history.error = signal.aborted ? 'Consulta cancelada.' : 'Algumas páginas não foram carregadas (' + error.message + ').'; }
+        const failure = results.find(r => r.status === 'rejected'); if (failure) throw failure.reason;
+        const seen = new Set(), all = [];
+        for (const f of files) for (const row of batches.get(f.ano)) {
+            if (seen.has(row.numeroControlePNCP)) throw new Error('Registros duplicados na base publicada.'); seen.add(row.numeroControlePNCP);
+            const day = String(row.dataPublicacaoPncp).slice(0, 10);
+            if (day >= start && day <= end && units.includes(String(row.unidadeOrgao.codigoUnidade)) && String(row.modalidadeId) === modality) all.push({ ...row, _historicoAtualizadoEm: row.coletadoEm || m.atualizadoEm });
+        }
+        all.sort((a, b) => String(b.dataPublicacaoPncp).localeCompare(String(a.dataPublicacaoPncp)) || a.numeroControlePNCP.localeCompare(b.numeroControlePNCP));
+        history.items = all; history.page = 1; history.loaded = true; history.complete = true; history.at = m.atualizadoEm; history.criteria = [start, end, unit, modality]; history.coverage = m.cobertura; history.coverageNote = coverageNote;
+        history.metrics = { totalMs: Math.round(performance.now() - started), registros: all.length, versao: m.versao };
+    } catch (error) { history.error = signal.aborted ? 'Consulta cancelada.' : error.message; }
     finally {
-        history.busy = false; history.metrics.totalMs = Math.round(performance.now() - history.metrics.started); historyCancel.hidden = true;
+        history.busy = false; historyCancel.hidden = true;
         for (const id of ['historyStart', 'historyEnd', 'historyUnit', 'historyModality', 'historySearch']) $(id).disabled = false;
-        render();
-        if (history.error) $('historyStatus').textContent = history.error + ' Os registros recebidos foram preservados. Use Retomar páginas pendentes.';
+        cp2RenderHistory();
+        if (history.error) $('historyStatus').textContent = history.error + (history.loaded ? ' Foram mantidos os resultados da consulta anterior.' : '');
     }
 }
 const cp2Navigate = navigate; navigate = function (view) { cp2Navigate(view); $('history').hidden = view !== 'historico'; contractOrderField.hidden = view !== 'contratos'; };
