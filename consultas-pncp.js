@@ -72,7 +72,7 @@ const historyUnitCache = new Map();
 function cp2HistoryWait(ms, signal) { return new Promise((resolve, reject) => { if (signal.aborted) return reject(new DOMException('Cancelado', 'AbortError')); const abort = () => { clearTimeout(timer); reject(new DOMException('Cancelado', 'AbortError')); }; const timer = setTimeout(() => { signal.removeEventListener('abort', abort); resolve(); }, ms); signal.addEventListener('abort', abort, { once: true }); }); }
 async function cp2HistoryFetch(url, signal) {
     for (let attempt = 0; ; attempt++) {
-        const local = new AbortController(), abort = () => local.abort(); if (signal.aborted) throw new DOMException('Cancelado', 'AbortError'); signal.addEventListener('abort', abort, { once: true }); const timeout = setTimeout(abort, 30000); let retry = 0;
+        const local = new AbortController(), abort = () => local.abort(); if (signal.aborted) throw new DOMException('Cancelado', 'AbortError'); signal.addEventListener('abort', abort, { once: true }); const timeout = setTimeout(abort, 75000); let retry = 0;
         try {
             const r = await fetch(url, { signal: local.signal, headers: { Accept: 'application/json' } }); if (r.status === 204) return { data: [], totalPaginas: 0 };
             if (r.status === 429 && attempt < 2) { const h = r.headers.get('Retry-After'), seconds = h === null ? NaN : Number(h); retry = Math.max(1000, Number.isFinite(seconds) ? seconds * 1000 : (Date.parse(h) - Date.now()) || ((attempt + 1) * 5000)); }
