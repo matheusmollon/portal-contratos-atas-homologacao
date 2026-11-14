@@ -54,7 +54,7 @@ function cp2RenderHistory() {
     for (const item of items.slice((history.page - 1) * history.size, history.page * history.size)) { const card = el('article', undefined, 'card'); card.append(el('h2', portalProcurementTitle(item)), el('p', item.objetoCompra)); const dl = el('dl'); field(dl, 'Situação publicada', item.situacaoCompraNome); field(dl, 'Publicação', dateTime(item.dataPublicacaoPncp)); field(dl, 'Unidade', item.unidadeOrgao?.nomeUnidade); card.append(dl); const b = el('button', 'Ver itens, resultados e documentos', 'secondary'); b.onclick = () => cp2Open(item); const actions = el('div', undefined, 'card-actions'); actions.append(b); card.append(actions); $('historyCards').append(card); }
     if (!items.length) $('historyCards').append(el('p', history.complete ? 'Nenhum objeto corresponde à busca nos registros consultados.' : 'Nenhuma correspondência nos dados recebidos. A consulta está incompleta.', 'empty'));
     history.filteredTotal = items.length; history.pages = pages;
-    $('historyStatus').textContent = (history.busy ? 'Consulta em andamento — resultados parciais' : history.complete ? 'Consulta concluída' : 'Consulta incompleta — faltam páginas ou unidades') + ' · ' + items.length + ' resultado(s) em ' + history.items.length + ' registro(s) carregados · Página ' + history.page + ' de ' + pages + ' · Consulta em ' + new Date(history.at).toLocaleString('pt-BR'); $('historyPrev').disabled = history.busy || history.page <= 1; $('historyNext').disabled = history.busy || history.page >= pages;
+    $('historyStatus').textContent = (history.busy ? 'Consulta em andamento — resultados parciais' : history.complete ? 'Consulta concluída' : 'Consulta incompleta — faltam páginas ou unidades') + ' · ' + items.length + ' resultado(s) em ' + history.items.length + ' registro(s) carregados · Página ' + history.page + ' de ' + pages + ' · Consulta em ' + new Date(history.at).toLocaleString('pt-BR'); $('historyPrev').disabled = history.page <= 1; $('historyNext').disabled = history.page >= pages;
 }
 historyObjectInput.addEventListener('input', () => { history.page = 1; cp2RenderHistory(); });
 function cp2HistoryProgress(units, steps, done = false, message = '') {
@@ -68,17 +68,37 @@ function cp2HistoryProgress(units, steps, done = false, message = '') {
     const names = { '153176': 'Regional Norte', '150148': 'Londrina', '150149': 'Apucarana' };
     $('historyProgressLabel').textContent = 'Consultando o PNCP… · ' + units.map(ug => { const st = steps.get(ug); return names[ug] + ': ' + (!st ? 'aguardando' : st.total === undefined ? 'consultando' : st.received >= st.total ? 'concluído' : 'consultando página ' + (st.received + 1) + ' de ' + st.total); }).join(' · ');
 }
-const historyUnitCache = new Map();
 function cp2HistoryWait(ms, signal) { return new Promise((resolve, reject) => { if (signal.aborted) return reject(new DOMException('Cancelado', 'AbortError')); const abort = () => { clearTimeout(timer); reject(new DOMException('Cancelado', 'AbortError')); }; const timer = setTimeout(() => { signal.removeEventListener('abort', abort); resolve(); }, ms); signal.addEventListener('abort', abort, { once: true }); }); }
+// Cache por página: uma falha não obriga a repetir páginas já recebidas.
+const historyPageCache = new Map();
 async function cp2HistoryFetch(url, signal) {
-    for (let attempt = 0; ; attempt++) {
-        const local = new AbortController(), abort = () => local.abort(); if (signal.aborted) throw new DOMException('Cancelado', 'AbortError'); signal.addEventListener('abort', abort, { once: true }); const timeout = setTimeout(abort, 75000); let retry = 0;
+    const hit = historyPageCache.get(url);
+    if (hit && Date.now() - hit.at < 300000) { history.metrics.cacheHits++; return hit.data; }
+    for (let attempt = 0; attempt < 3; attempt++) {
+        const local = new AbortController(), abort = () => local.abort();
+        if (signal.aborted) throw new DOMException('Cancelado', 'AbortError');
+        signal.addEventListener('abort', abort, { once: true });
+        const timeout = setTimeout(abort, 75000); let retry = 1000 * 2 ** attempt;
         try {
-            const r = await fetch(url, { signal: local.signal, headers: { Accept: 'application/json' } }); if (r.status === 204) return { data: [], totalPaginas: 0 };
-            if (r.status === 429 && attempt < 2) { const h = r.headers.get('Retry-After'), seconds = h === null ? NaN : Number(h); retry = Math.max(1000, Number.isFinite(seconds) ? seconds * 1000 : (Date.parse(h) - Date.now()) || ((attempt + 1) * 5000)); }
-            else { if (!r.ok) throw new Error('HTTP ' + r.status); const d = await r.json(); if (!Array.isArray(d.data) || !Number.isInteger(Number(d.totalPaginas)) || Number(d.totalPaginas) < 0) throw new Error('Resposta inválida'); return d; }
+            history.metrics.requests++;
+            const r = await fetch(url, { signal: local.signal, headers: { Accept: 'application/json' } });
+            if (!r.ok && r.status !== 204) {
+                const error = new Error('HTTP ' + r.status); error.retryable = [429, 502, 503, 504].includes(r.status);
+                const h = r.headers.get('Retry-After');
+                if (h !== null) { const seconds = Number(h), delay = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(h) - Date.now(); if (Number.isFinite(delay)) retry = Math.max(retry, delay); }
+                throw error;
+            }
+            const d = r.status === 204 ? { data: [], totalPaginas: 0 } : await r.json();
+            if (!Array.isArray(d.data) || d.totalPaginas == null || !Number.isInteger(Number(d.totalPaginas)) || Number(d.totalPaginas) < 0) throw new Error('Resposta inválida');
+            if (signal.aborted) throw new DOMException('Cancelado', 'AbortError');
+            if (historyPageCache.size >= 240) historyPageCache.delete(historyPageCache.keys().next().value);
+            historyPageCache.set(url, { data: d, at: Date.now() }); return d;
+        } catch (error) {
+            if (signal.aborted) throw new DOMException('Cancelado', 'AbortError');
+            if (attempt === 2 || !(error.retryable || error.name === 'AbortError' || error instanceof TypeError)) throw error;
+            history.metrics.retries++;
         } finally { clearTimeout(timeout); signal.removeEventListener('abort', abort); }
-        await cp2HistoryWait(retry, signal);
+        await cp2HistoryWait(Math.max(1000, retry), signal);
     }
 }
 async function cp2History() {
@@ -90,25 +110,26 @@ async function cp2History() {
     history.busy = true; history.items = []; history.complete = false; history.loaded = true; history.controller = new AbortController(); historyCancel.hidden = false; for (const id of ['historyStart', 'historyEnd', 'historyUnit', 'historyModality', 'historySearch']) $(id).disabled = true; $('historyPrev').disabled = $('historyNext').disabled = true;
     const signal = history.controller.signal, units = unit === 'all' ? ['153176', '150148', '150149'] : [unit], seen = new Set(), byUnit = new Map(), steps = new Map(); let finished = 0;
     cp2HistoryProgress(units, steps);
-    history.metrics = { started: performance.now(), firstResultMs: null, totalMs: null, requests: 0, cacheHits: 0 };
+    history.metrics = { started: performance.now(), firstResultMs: null, totalMs: null, requests: 0, cacheHits: 0, retries: 0 };
     const display = () => { cp2HistoryProgress(units, steps); history.items = units.flatMap(ug => byUnit.get(ug) || []); history.at = Date.now(); cp2RenderHistory(); $('historyStatus').textContent = 'Consulta em andamento · ' + finished + ' de ' + units.length + ' unidades concluídas · ' + history.items.length + ' registros recebidos · resultados parciais.'; };
     const loadUnit = async ug => {
-        const cacheKey = JSON.stringify([start, end, ug, modality]), hit = historyUnitCache.get(cacheKey), rows = []; byUnit.set(ug, rows); steps.set(ug, { received: 0 }); cp2HistoryProgress(units, steps);
+        const rows = []; byUnit.set(ug, rows); steps.set(ug, { received: 0 }); cp2HistoryProgress(units, steps);
         const receive = items => { for (const item of items) { const id = item.numeroControlePNCP || JSON.stringify([item.orgaoEntidade?.cnpj, item.anoCompra, item.sequencialCompra, item.unidadeOrgao?.codigoUnidade, item.numeroCompra]); if (!seen.has(id)) { seen.add(id); rows.push(item); } } if (rows.length && history.metrics.firstResultMs === null) history.metrics.firstResultMs = Math.round(performance.now() - history.metrics.started); display(); };
-        if (hit && Date.now() - hit.at < 300000) { history.metrics.cacheHits++; steps.set(ug, { received: 1, total: 1 }); receive(hit.items); finished++; display(); return; }
         let page = 1, pages = 1; do {
             if (signal.aborted) throw new DOMException('Cancelado', 'AbortError');
-            const p = new URLSearchParams({ dataInicial: start.replaceAll('-', ''), dataFinal: end.replaceAll('-', ''), codigoModalidadeContratacao: modality, codigoUnidadeAdministrativa: ug, pagina: String(page) }); history.metrics.requests++;
+            const p = new URLSearchParams({ dataInicial: start.replaceAll('-', ''), dataFinal: end.replaceAll('-', ''), codigoModalidadeContratacao: modality, codigoUnidadeAdministrativa: ug, pagina: String(page) });
             const d = await cp2HistoryFetch(c5Api() + '/historico/contratacoes?' + p, signal); pages = Math.max(1, Number(d.totalPaginas)); steps.set(ug, { received: page, total: pages }); receive(d.data); page++;
             if (page <= pages) await cp2HistoryWait(350, signal);
         } while (page <= pages);
-        if (historyUnitCache.size >= 36) historyUnitCache.delete(historyUnitCache.keys().next().value); historyUnitCache.set(cacheKey, { items: rows.slice(), at: Date.now() }); finished++; display();
+        finished++; display();
     };
     try {
-        // A Regional Norte termina primeiro; no máximo duas unidades são consultadas em paralelo depois.
-        await loadUnit(units[0]);
-        const remaining = units.slice(1); const results = await Promise.allSettled(remaining.map(async (ug, index) => { if (index) await cp2HistoryWait(350, signal); await loadUnit(ug); }));
-        const failed = results.find(r => r.status === 'rejected'); if (failed) throw failed.reason;
+        // Duas filas independentes: a falha de uma unidade não impede as demais.
+        let next = 0; const failures = [];
+        const runner = async () => { while (next < units.length) { if (signal.aborted) throw new DOMException('Cancelado', 'AbortError'); const ug = units[next++]; try { await loadUnit(ug); } catch (error) { failures.push(error); if (signal.aborted) throw error; } } };
+        await Promise.allSettled(Array.from({ length: Math.min(2, units.length) }, runner));
+        if (signal.aborted) throw new DOMException('Cancelado', 'AbortError');
+        if (failures.length) throw failures[0];
         history.complete = true; history.at = Date.now(); if (history.cache.size >= 12) history.cache.delete(history.cache.keys().next().value); history.cache.set(key, { items: history.items.slice(), at: history.at });
     } catch (e) { if (!history.items.length && previous.loaded) { history.items = previous.items; history.page = previous.page; history.complete = previous.complete; history.at = previous.at; history.criteria = previous.criteria; history.preserved = true; } else { history.preserved = false; history.at = Date.now(); } history.error = signal.aborted ? 'Consulta cancelada.' : 'Não foi possível carregar todas as páginas (' + e.message + ').'; }
     finally { history.metrics.totalMs = Math.round(performance.now() - history.metrics.started); history.busy = false; cp2HistoryProgress(units, steps, history.complete && !history.error, history.error ? 'Carregamento interrompido · ' + history.error : ''); historyCancel.hidden = true; for (const id of ['historyStart', 'historyEnd', 'historyUnit', 'historyModality', 'historySearch']) $(id).disabled = false; cp2RenderHistory(); if (history.error) { $('historyStatus').textContent = history.error + ' ' + (history.preserved ? 'Mantidos os resultados da consulta anterior. ' : '') + $('historyStatus').textContent; if (typeof uiFeedback === 'function') uiFeedback('historyStatus', history.error + (history.preserved ? ' Os resultados anteriores foram mantidos.' : ' Foram preservados os registros que chegaram.'), () => cp2History()); } }
