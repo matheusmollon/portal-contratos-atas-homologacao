@@ -1,3 +1,13 @@
+// Aviso temporário: desativar quando houver confirmação oficial de restabelecimento.
+const AVISO_MANUTENCAO_TRANSPARENCIA_ATIVO = true;
+function avisoManutencaoTransparencia(tipo) {
+  const box = el('aside', undefined, 'notice warning'); box.setAttribute('role', 'note');
+  box.style.cssText = 'margin:12px 0;padding:14px 16px;border:1px solid #d6a139;border-left:4px solid #a66b00;border-radius:8px;background:#fff8e6;color:#614300;line-height:1.6';
+  const text = tipo === 'item' ? 'A consulta externa de empenhos, saldos, adesões e demais dados da ata no módulo de transparência do Contratos.gov.br está temporariamente indisponível por manutenção técnica.' : 'O módulo de transparência do Contratos.gov.br está temporariamente indisponível por manutenção técnica. O link de consulta na fonte pode não abrir durante esse período.';
+  box.append(el('strong', 'Serviço externo em manutenção'), el('p', text));
+  link(box, 'https://www.gov.br/compras/pt-br/acesso-a-informacao/comunicados/2026/no-48-26-manutencao-dos-modulos-de-transparencia-do-sistema-contratos-gov.br', 'Consultar comunicado oficial nº 48/26 — publicado em 11/11/2026');
+  return box;
+}
 
 'use strict';
 const $ = id => document.getElementById(id);
@@ -360,6 +370,7 @@ function detail(row) {
   }
 
   const links = el('div', undefined, 'links'); link(links, row.link, row.tipo === 'ata' ? 'Abrir ata no PNCP' : 'Documento oficial'); link(links, row.linkCompra, 'Abrir contratação no PNCP'); link(links, row.tipo === 'contrato' ? linkTransparenciaContrato(row.id) : row.linkDados, 'Consultar dados na fonte'); if (row.tipo === 'ata') link(links, row.linkContratos || 'https://contratos.sistema.gov.br/transparencia/arp', 'Abrir ata no Contratos.gov.br' + (row.linkContratos ? '' : ' — pesquisar')); body.append(links);
+  if (AVISO_MANUTENCAO_TRANSPARENCIA_ATIVO) body.append(avisoManutencaoTransparencia(row.tipo === 'ata' ? 'item' : 'contrato'));
   const pncpLinks = Array.from(links.querySelectorAll('a')).filter(a => /^https:\/\/pncp\.gov\.br(?:\/|$)/i.test(a.href));
   if (pncpLinks.length) { const aviso = el('p', 'Os links do PNCP abrem um serviço externo, que pode apresentar instabilidade ao consultar atas, contratações ou arquivos. Se ocorrer um erro no PNCP, tente novamente mais tarde. A falha na abertura externa não significa, por si só, falha deste portal.', 'pncp-notice'); aviso.id = 'pncpNotice'; pncpLinks.forEach(a => a.setAttribute('aria-describedby', aviso.id)); body.append(aviso); }
 
@@ -380,7 +391,8 @@ function detail(row) {
         if (informed(item.desconto) && Number(item.desconto) !== 0) commercial.grid.append(itemMetric('Maior desconto', qty(item.desconto) + '%')); box.append(commercial.section);
         const official = el('div', undefined, 'links item-official-links');
         link(official, item.linkItemContratos || row.linkContratos || 'https://contratos.sistema.gov.br/transparencia/arp', item.linkItemContratos ? 'Consultar empenhos, saldos e adesões' : row.linkContratos ? 'Consultar empenhos, saldos e adesões na ata' : 'Localizar ata no portal oficial'); box.append(official);
-        box.append(el('p', item.linkItemContratos ? 'Consulte os empenhos, saldos e adesões deste item no portal oficial Contratos.gov.br.' : row.linkContratos ? 'O link abre a ata no portal oficial. Selecione o item para consultar empenhos, saldos e adesões.' : 'O vínculo direto ainda não foi confirmado. Localize a ata na pesquisa oficial para consultar empenhos, saldos e adesões.', 'hint item-official-note'));
+        if (AVISO_MANUTENCAO_TRANSPARENCIA_ATIVO) box.append(avisoManutencaoTransparencia('item'));
+        else box.append(el('p', item.linkItemContratos ? 'Consulte os empenhos, saldos e adesões deste item no portal oficial Contratos.gov.br.' : row.linkContratos ? 'O link abre a ata no portal oficial. Selecione o item para consultar empenhos, saldos e adesões.' : 'O vínculo direto ainda não foi confirmado. Localize a ata na pesquisa oficial para consultar empenhos, saldos e adesões.', 'hint item-official-note'));
         list.append(box);
       }
       if (!items.length) list.append(el('p', 'Nenhum item encontrado para este filtro.'));
